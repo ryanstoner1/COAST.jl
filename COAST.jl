@@ -6,7 +6,10 @@ using LinearAlgebra
 using PyCall
 using Random
 
+include("preprocessing_he_data.jl")
+
 export COAST_loaded, forward_diffusion, cur_path, decompose_eu
+
 """
 Constrained Optimization and Sensitivity for Thermochronology
 R. Stoner
@@ -161,21 +164,7 @@ function fill_u_term2(L,n_iter,N_t_segs,F,dfdchi,dzeta,zeta,mu_n,uterm2,zeta_end
   return uterm2
 end
 
-"""
-    function decompose_eu(eU::Float64,Th_U_ratio::Float64)
 
-Calculate *U* and *Th* concentrations from effective uranium and *Th/U* ratio
-
-
-
-"""
-function decompose_eu(eU::Float64,Th_U_ratio::Float64)
-
-U = eU./(1.0.+0.24*Th_U_ratio)
-Th = eU./((1.0./Th_U_ratio).+0.24)
-
-return U,Th
-end
 
 
 # Write your package code here.
