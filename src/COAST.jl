@@ -5,6 +5,8 @@ using JuMP
 using LinearAlgebra
 using PyCall
 using Random
+
+export COAST_loaded, forward_diffusion, cur_path, decompose_eu
 """
 Constrained Optimization and Sensitivity for Thermochronology
 R. Stoner
@@ -32,9 +34,9 @@ Calculate radioactive ingrowth and diffusion of He4 using modified eqns
  from Meesters & Dunai, 2002 for single crystal.
 
 # Arguments:
-- `density::Integer`: the .
+- `density::Float64`: the .
 """
-function forward_diffusion(density,n_iter,c0,c1,c2,c3,alpha,rmr0,U238_V,Th232_V,
+function forward_diffusion(density::Float64,n_iter,c0,c1,c2,c3,alpha,rmr0,U238_V,Th232_V,
     U238,Th232,E_L,L,T0,kappa,T::Tvv...) where {Tvv<:Real}
 
   # He params
@@ -159,7 +161,23 @@ function fill_u_term2(L,n_iter,N_t_segs,F,dfdchi,dzeta,zeta,mu_n,uterm2,zeta_end
   return uterm2
 end
 
-export COAST_loaded, forward_diffusion, cur_path
+"""
+    function decompose_eu(eU::Float64,Th_U_ratio::Float64)
+
+Calculate *U* and *Th* concentrations from effective uranium and *Th/U* ratio
+
+
+
+"""
+function decompose_eu(eU::Float64,Th_U_ratio::Float64)
+
+U = eU./(1.0.+0.24*Th_U_ratio)
+Th = eU./((1.0./Th_U_ratio).+0.24)
+
+return U,Th
+end
+
+
 # Write your package code here.
 
 end
