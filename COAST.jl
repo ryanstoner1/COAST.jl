@@ -40,11 +40,12 @@ Calculate radioactive ingrowth and diffusion of He4 using modified eqns
 - `density::Float64`: the .
 """
 function forward_diffusion(density::Float64,n_iter,c0,c1,c2,c3,alpha,rmr0,U238_V,Th232_V,
-    U238,Th232,E_L,L,T0,kappa,T::Tvv...) where {Tvv<:Real}
+    U238,Th232,E_L,L,T0,kappa,times,T::Tvv...) where {Tvv<:Real}
+  N_t_segs = length(T)+1
+  @assert length(times)=N_t_segs
 
   # He params
   D0_L2=exp(9.733)
-
   E_trap = 34*1e3
   R_joules = 8.314
   omega_rho = 1e-22
@@ -62,8 +63,8 @@ function forward_diffusion(density::Float64,n_iter,c0,c1,c2,c3,alpha,rmr0,U238_V
 # rmr0,kappa,c0,c1,c2,c3,alpha,
 rho_r=0.0
 erho_s=0.0
-N_t_segs = length(T)+1
-times = LinRange(120.01*1e6*sec_in_yrs,sec_in_yrs*1e6*0.01,N_t_segs)
+
+
 D0_rdaam = zeros(Tvv,N_t_segs+1)
 F = zeros(Tvv,N_t_segs+1)
 zeta = zeros(Tvv,N_t_segs+1)
@@ -164,9 +165,15 @@ function fill_u_term2(L,n_iter,N_t_segs,F,dfdchi,dzeta,zeta,mu_n,uterm2,zeta_end
   return uterm2
 end
 
+function register_forward_JuMP(linear_solver,print_level=5,tol=1e-3,max_iter=1000,
+  acceptable_constr_viol_tol=0.001)
 
 
+model = Model(() -> Ipopt.Optimizer(print_level=print_level,tol=tol,max_iter=max_iter,
+  acceptable_constr_viol_tol=acceptable_constr_viol_tol,linear_solver=linear_solver))
+return model
 
-# Write your package code here.
+end
 
+# end of module
 end
