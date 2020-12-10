@@ -16,6 +16,14 @@ R. Stoner
 11/2020
 """
 
+# define constants
+const R_joules = 8.314 # gas constant
+const sec_in_yrs = 3.1558e7
+const lambda_f = 8.46e-17/sec_in_yrs
+const lambda_38 = 1.55125 * 1e-10/sec_in_yrs
+const lambda_32 = 4.9475*1e-11/sec_in_yrs
+const tau = 1.0./lambda_38
+
 """
 test functionality
 """
@@ -39,40 +47,26 @@ Calculate radioactive ingrowth and diffusion of He4 using modified eqns
 # Arguments:
 - `density::Float64`: the .
 """
-function forward_diffusion(density::Float64,n_iter,c0,c1,c2,c3,alpha,rmr0,U238_V,Th232_V,
-    U238,Th232,E_L,L,T0,kappa,times,T::Tvv...) where {Tvv<:Real}
+function rdaam_forward_diffusion(density::Float64,n_iter,c0,c1,c2,c3,alpha,rmr0,
+    U238_V,Th232_V,U238,Th232,E_L,L,T0,kappa,times,
+    T::Tvv...; D0_L2=16865.0,E_trap=34*1e3,omega_rho = 1e-22,
+    psi_rho = 1e-13,L_dist = 8.1*1e-4,eta_q = 0.91) where {Tvv<:Real}
   N_t_segs = length(T)+1
   @assert length(times)=N_t_segs
 
-  # He params
-  D0_L2=exp(9.733)
-  E_trap = 34*1e3
-  R_joules = 8.314
-  omega_rho = 1e-22
-  psi_rho = 1e-13
-
-  L_dist = 8.1*1e-4 # cm !!
-  sec_in_yrs = 3.1558e7
-  lambda_f = 8.46e-17/sec_in_yrs
-  lambda_38 = 1.55125 * 1e-10/sec_in_yrs
-  lambda_32 = 4.9475*1e-11/sec_in_yrs
-  tau = 1.0./lambda_38
-
-  eta_q = 0.91
-
-# rmr0,kappa,c0,c1,c2,c3,alpha,
+# initialize values
 rho_r=0.0
 erho_s=0.0
-
-
-D0_rdaam = zeros(Tvv,N_t_segs+1)
+D0_rdaam = zeros(Tvv,N_t_segs+1) # type needs to be generalized for autodiff
 F = zeros(Tvv,N_t_segs+1)
 zeta = zeros(Tvv,N_t_segs+1)
 dzeta = zeros(Tvv,N_t_segs+1)
 dfdchi = zeros(Tvv,(N_t_segs-1))
 a = 0.0
-for (ind,time_i) in enumerate(times)
 
+# calculate radiation damage, diffusivities
+for (ind,time_i) in enumerate(times)
+  # run a short, one year pass before to stabilize
   if ind>1
     a = ((c0+c1*(log(times[ind-1]-time_i)-c2)/(log(1/T[ind-1])-c3))^(1/alpha)+1)^(-1)
   else
