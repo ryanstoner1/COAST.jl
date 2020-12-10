@@ -1,4 +1,23 @@
 """
+JuMP interaction
+"""
+
+
+"""
+Pass JuMP model setup to Ipopt - a nonlinear solver
+
+See Ipopt documentation
+"""
+function initialize_JuMP_model(linear_solver,print_level=5,tol=1e-3,max_iter=1000,
+  acceptable_constr_viol_tol=0.001)
+
+
+model = Model(() -> Ipopt.Optimizer(print_level=print_level,tol=tol,max_iter=max_iter,
+  acceptable_constr_viol_tol=acceptable_constr_viol_tol,linear_solver=linear_solver))
+return model
+
+end
+"""
 
 Let JuMP know about variables
 
@@ -12,32 +31,39 @@ function register_variables(n_t_segs,n_data_pts,model,lower_bound=273.0,upper_bo
 return T,T0,set_dev
 end
 
-#
-#
-# """
-# Let JuMP know about constraints
-# """
-# function define_constraints(set_dev,set_val,E_L,L,T0,T,c0,c1,c2,alpha,rmr0,
-#   n_iter,U238,U238_V,n_iter=50)
-#
-# n_constraints = length(U238)
-# for j in 1:n_constraints
-#   if j<n_constraints
-#     my_constr2 = @NLconstraint(model2, [i = j:j],(rdaam_forward_diffusion(density,n_iter,c0,
-#       c1,c2,c3,alpha,rmr0,U238_V[j],0.0,U238[j],0.0,E_L,L,T0,kappa,T...
-#       )-set_val[j]+set_dev[j])^2<=(set_val[j]*0.005)^2)
-#
-#   elseif j==n_constraints
-#     my_constr2 = @NLconstraint(model2, [i = j:j],(rdaam_forward_diffusion(density,n_iter,c0,
-#       c1,c2,c3,alpha,rmr0,U238_V[j],0.0,U238[j],0.0,E_L,L,T0,kappa,T...
-#       )-set_val[j]+set_dev[j])==(set_val[j]*0.0))
-#
-#   end
-#
-# end
-#
-# return nothing
-# end
+"""
+Let JuMP know about constraints
+"""
+function rdaam_define_constraints(model,set_dev,set_val,L,T0,T,U238,U238_V;
+   n_iter=50,E_L=122.3*1e3,c0=0.39528,c1=0.01073,c2=-65.12969,c3=-7.91715,
+   alpha=0.04672,rmr0=0.79,D0_L2=16865.0,E_trap=34*1e3,omega_rho=1e-22,
+   psi_rho=1e-13,L_dist=8.1*1e-4,eta_q=0.91)
+
+kappa = 1.04-rmr0
+kwargs_rdaam = (E_L,c0,c1,c2,c3,alpha,rmr0,D0_L2,E_trap,omega_rho,psi_rho,
+                L_dist,eta_q)
+
+for j in eachindex(U238)
+    if j<n_constraints
+      my_constr = @NLconstraint(
+        model, [i = j:j],(
+        rdaam_forward_diffusion(density,U238_V[j],0.0,U238[j],0.0,L,
+          T0,times,n_iter,kappa,kwargs_rdaam...,
+        T...)-set_val[j]+set_dev[j])^2<=(set_val[j]*0.005)^2)
+
+    elseif j==n_constraints
+      my_constr = @NLconstraint(
+        model, [i = j:j],(
+        rdaam_forward_diffusion(density,U238_V[j],0.0,U238[j],0.0,L,
+          T0,times,n_iter,kappa,kwargs_rdaam...,T...)-set_val[j]+set_dev[j])==(set_val[j]*0.0))
+
+    end
+end
+
+
+
+return kwargs_rdaam
+end
 
 """
 ```julia
@@ -53,7 +79,7 @@ x = (upper-lower)*init_scaling_young+lower
 elseif x<=20
 x = (upper-lower).*init_scaling_old+lower
 end
-#print("snuggleflerp \n")
+
 return x
 end
 
