@@ -3,13 +3,13 @@
 Let JuMP know about variables
 
 """
-function register_variables(N_t_segs,model,lower_bound=273.0,upper_bound=410.0,T0=385.0,autodiff=true)
-  T = @variable(model, [i=1:N_t_segs],base_name="T",lower_bound=lower_bound,
-    upper_bound=map(constrain_upper,upper_bound,i,N_t_segs),
+function register_variables(n_t_segs,n_data_pts,model,lower_bound=273.0,upper_bound=410.0,T0=385.0,autodiff=true)
+  T = @variable(model, [i=1:n_t_segs],base_name="T",lower_bound=lower_bound,
+    upper_bound=map(constrain_upper,upper_bound,i,n_t_segs),
     start=map(constraint_func,i,upper_bound,lower_bound,0.9,0.1))
   @variable(model, T0==385.0)
-  @NLparameter(model, set_dev[i = 1:3] == 0.0 * i)
-return T,set_dev
+  @NLparameter(model, set_dev[i = 1:n_data_pts] == 0.0 * i)
+return T,T0,set_dev
 end
 
 #
