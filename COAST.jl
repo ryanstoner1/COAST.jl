@@ -14,20 +14,23 @@ using Random
 
 ## Helium diffusion
 include("he_preprocessing.jl")
-include("he_vars_constraints.jl")
 include("he_forward.jl")
+include("he_vars_constraints.jl")
 
 # funcs for unit testing
 export loaded_COAST
 
 # preprocessing
-export decompose_eu
+export decompose_eu, ppm_to_atoms_per_volume
 
 # treating setup
-export register_variables, constraint_func, constrain_upper#, define_constraints
+export register_variables, constraint_func, constrain_upper
+export rdaam_define_constraints
 
 # forward model
-export rdaam_forward_diffusion, register_forward_JuMP
+export rdaam_forward_diffusion, initialize_JuMP_model
+export register_forward_model!, register_objective_function!
+export fill_u_term2
 
 ## testing funcs
 """
