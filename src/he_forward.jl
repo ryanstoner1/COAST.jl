@@ -1,5 +1,6 @@
 # forward models of he diffusion
 # define constants
+
 const R_joules = 8.314 # gas constant
 const sec_in_yrs = 3.1558e7
 const lambda_f = 8.46e-17/sec_in_yrs
@@ -10,6 +11,7 @@ const tau = 1.0./lambda_38
 const Na = 6.022e23  # avogadro number
 const atomic_mass_U238 = 238.050791  # g/mol
 
+
 """
 
 Calculate radioactive ingrowth and diffusion of He4 using modified eqns
@@ -18,21 +20,21 @@ Calculate radioactive ingrowth and diffusion of He4 using modified eqns
 # Arguments:
 - `density::Float64`: the .
 """
-function rdaam_forward_diffusion(density::Float64,n_iter,c0,c1,c2,c3,alpha,rmr0,
-    U238_V,Th232_V,U238,Th232,E_L,L,T0,kappa,times,
-    T::Tvv...; D0_L2=16865.0,E_trap=34*1e3,omega_rho = 1e-22,
-    psi_rho = 1e-13,L_dist = 8.1*1e-4,eta_q = 0.91) where {Tvv<:Real}
-  N_t_segs = length(T)+1
-  @assert length(times)=N_t_segs
+function rdaam_forward_diffusion(density::Float64,U238_V,Th232_V,U238,Th232,L,
+  T0,times,n_iter,kappa,E_L,c0,c1,c2,c3,alpha,rmr0,D0_L2,E_trap,omega_rho,
+  psi_rho,L_dist,eta_q,T::Tvv...) where {Tvv<:Real}
+
+n_t_segs = length(T)+1
+@assert length(times)=n_t_segs
 
 # initialize values
 rho_r=0.0
 erho_s=0.0
-D0_rdaam = zeros(Tvv,N_t_segs+1) # type needs to be generalized for autodiff
-F = zeros(Tvv,N_t_segs+1)
-zeta = zeros(Tvv,N_t_segs+1)
-dzeta = zeros(Tvv,N_t_segs+1)
-dfdchi = zeros(Tvv,(N_t_segs-1))
+D0_rdaam = zeros(Tvv,n_t_segs+1) # type needs to be generalized for autodiff
+F = zeros(Tvv,n_t_segs+1)
+zeta = zeros(Tvv,n_t_segs+1)
+dzeta = zeros(Tvv,n_t_segs+1)
+dfdchi = zeros(Tvv,(n_t_segs-1))
 a = 0.0
 
 # calculate radiation damage, diffusivities
@@ -76,7 +78,7 @@ for (ind,time_i) in enumerate(times)
 
   end
 
-  if (ind<N_t_segs+1) & (ind>1)
+  if (ind<n_t_segs+1) & (ind>1)
     dfdchi[ind-1]=(F[ind-1]-F[ind])/(dzeta[ind])
   end
 
@@ -89,7 +91,7 @@ mu_n = 0.0
 zeta_end = zeta[end-1]
 
 
-uterm2 = fill_u_term2(L,n_iter,N_t_segs,F,dfdchi,dzeta,zeta,mu_n,uterm2,zeta_end)
+uterm2 = fill_u_term2(L,n_iter,n_t_segs,F,dfdchi,dzeta,zeta,mu_n,uterm2,zeta_end)
 
 
 U238_0 = U238*(exp(lambda_38*times[end])) # U238 is measured at present
@@ -103,6 +105,22 @@ uF = uF/(pi*4/3) # [uF] = ppm - [He] @ modern day/after ingrowth
 return (uF,uterm2)
 end
 
+function fill_u_term2(L,n_iter,n_t_segs,F,dfdchi,dzeta,zeta,mu_n,uterm2,zeta_end)
+    mu_base = (pi/L)^2
+  for n in 1:n_iter
+          utermbase = 0.0
+          mu_n = mu_base*n^2
+          for j in 1:(n_t_segs-1)
+               #dfdchi = (F[j+1]-F[j])/(dzeta[j+1])
+               #if mu_n*(sum(dzeta[j+2:end]))>=1e-14
+              utermbase+= dfdchi[j]*(exp(-mu_n*(zeta_end-zeta[j+1]))-exp(-mu_n*(zeta_end-zeta[j])))
+           end
+
+           uterm2 += (1/mu_n)*(1/(n*n))*utermbase #(-fx)*(exp(-t[]/tau)-exp(-k*(n*pi/L)^2*t))/(1-tau*k*(n*pi/L)^2) #cos.(n_term*r./L)*(1-exp(-t*k*(n_term/L)^2))*fn_t/(k*(n_term/L)^2)
+  end
+  return uterm2
+end
+
 function mod_constraints(T0,T::Tvv...) where {Tvv<:Real}
 
 smooth_mat=Tridiagonal(ones(length(T)-1),-2*ones(length(T)),1*ones(length(T)-1))
@@ -114,38 +132,19 @@ return smooth_tot
 
 end
 
-function fill_u_term2(L,n_iter,N_t_segs,F,dfdchi,dzeta,zeta,mu_n,uterm2,zeta_end)
-    mu_base = (pi/L)^2
-  for n in 1:n_iter
-          utermbase = 0.0
-          mu_n = mu_base*n^2
-          for j in 1:(N_t_segs-1)
-               #dfdchi = (F[j+1]-F[j])/(dzeta[j+1])
-               #if mu_n*(sum(dzeta[j+2:end]))>=1e-14
-              utermbase+= dfdchi[j]*(exp(-mu_n*(zeta_end-zeta[j+1]))-exp(-mu_n*(zeta_end-zeta[j])))
-           end
+function register_forward_model!(n_t_segs,model;
+    diffusion_func=rdaam_forward_diffusion,ancillary_func=fill_u_term2)
 
-           uterm2 += (1/mu_n)*(1/(n*n))*utermbase #(-fx)*(exp(-t[]/tau)-exp(-k*(n*pi/L)^2*t))/(1-tau*k*(n*pi/L)^2) #cos.(n_term*r./L)*(1-exp(-t*k*(n_term/L)^2))*fn_t/(k*(n_term/L)^2)
-  end
-  return uterm2
+  forward_model = Symbol(diffusion_func)
+  helper_func = Symbol(ancillary_func)
+
+  register(model,forward_model,23+n_t_segs,diffusion_func,autodiff=true)
+  register(model,helper_func,10,ancillary_func,autodiff=true)
+  return nothing
 end
 
-"""
-JuMP interaction
-"""
-
-
-"""
-Pass JuMP model setup to Ipopt - a nonlinear solver
-
-See Ipopt documentation
-"""
-function register_forward_JuMP(linear_solver,print_level=5,tol=1e-3,max_iter=1000,
-  acceptable_constr_viol_tol=0.001)
-
-
-model = Model(() -> Ipopt.Optimizer(print_level=print_level,tol=tol,max_iter=max_iter,
-  acceptable_constr_viol_tol=acceptable_constr_viol_tol,linear_solver=linear_solver))
-return model
-
+function register_objective_function!(n_t_segs,model;model_constraints=mod_constraints)
+  model_constraints_sym = Symbol(model_constraints)
+  register(model,model_constraints_sym,1+n_t_segs,model_constraints,autodiff=true)
+  return nothing
 end
