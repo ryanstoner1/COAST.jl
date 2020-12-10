@@ -1,10 +1,11 @@
 """
 Constrained Optimization and Sensitivity for Thermochronology
 R. Stoner
-11/2020
+2020
 """
 module COAST
 
+## Dependencies
 using Ipopt
 using JuMP
 using LinearAlgebra
@@ -16,28 +17,25 @@ include("he_preprocessing.jl")
 include("he_vars_constraints.jl")
 include("he_forward.jl")
 
-# present
-export cur_path
+# funcs for unit testing
+export loaded_COAST
 
 # preprocessing
 export decompose_eu
 
 # treating setup
-export register_variables#, define_constraints
+export register_variables, constraint_func, constrain_upper#, define_constraints
 
-# forward
+# forward model
 export rdaam_forward_diffusion, register_forward_JuMP
 
-
-##
+## testing funcs
 """
-see which path COAST sees
+Export checking
 """
-function cur_path()
-  current_path = pwd()
-  print("current path COAST sees is: $current_path \n")
-  return current_path
+function loaded_COAST()
+  load_success = true
+  return load_success
 end
 
-# end of module
 end
