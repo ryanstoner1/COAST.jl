@@ -7,6 +7,8 @@ const lambda_38 = 1.55125 * 1e-10/sec_in_yrs
 const lambda_32 = 4.9475*1e-11/sec_in_yrs
 const tau = 1.0./lambda_38
 
+const Na = 6.022e23  # avogadro number
+const atomic_mass_U238 = 238.050791  # g/mol
 
 """
 
