@@ -48,7 +48,6 @@ dfdchi = zeros(Tvv,(N_t_segs-1))
 a = 0.0
 
 # calculate apatite grain damage and annealing
-
 for (ind,time_i) in enumerate(times)
 
   if ind>1
