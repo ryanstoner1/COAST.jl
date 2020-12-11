@@ -12,8 +12,12 @@ function initialize_JuMP_model(linear_solver,print_level=5,tol=1e-3,max_iter=100
   acceptable_constr_viol_tol=0.001)
 
 
-model = Model(() -> Ipopt.Optimizer(print_level=print_level,tol=tol,max_iter=max_iter,
-  acceptable_constr_viol_tol=acceptable_constr_viol_tol,linear_solver=linear_solver))
+# model = Model(() -> Ipopt.Optimizer(print_level=print_level,tol=tol,max_iter=max_iter,
+#   acceptable_constr_viol_tol=acceptable_constr_viol_tol,linear_solver=linear_solver))
+
+model = Model(Ipopt.Optimizer)
+JuMP.set_optimizer_attributes(model,"print_level"=>print_level,"tol"=>tol,
+  "max_iter"=>max_iter,"acceptable_constr_viol_tol"=>acceptable_constr_viol_tol,"linear_solver"=>linear_solver)
 return model
 
 end

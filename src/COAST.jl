@@ -32,6 +32,8 @@ export rdaam_forward_diffusion, initialize_JuMP_model
 export register_forward_model!, register_objective_function!
 export fill_u_term2
 
+# constants
+export sec_in_yrs
 ## testing funcs
 """
 Export checking
