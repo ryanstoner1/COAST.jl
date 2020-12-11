@@ -22,37 +22,33 @@ Calculate radioactive ingrowth and diffusion of He4 using modified eqns
 """
 function rdaam_forward_diffusion(density,n_iter,c0,c1,c2,c3,alpha,rmr0,U238_V,Th232_V,U238,
   Th232,E_L,L,T0,kappa,D0_L2,E_trap,omega_rho,psi_rho,eta_q,L_dist,t_and_T...)#::Tvv...) where {Tvv<:Real}
+
 n_t = length(t_and_T)/2
 n_t = ceil(Int64,n_t)
-
 times = t_and_T[1:n_t]
 T = t_and_T[n_t+1:end]
-
 Tvv = eltype(T)
-  # He params
 
+R_joules = 8.314
+sec_in_yrs = 3.1558e7
+lambda_f = 8.46e-17/sec_in_yrs
+lambda_38 = 1.55125 * 1e-10/sec_in_yrs
+lambda_32 = 4.9475*1e-11/sec_in_yrs
+tau = 1.0./lambda_38
 
-  R_joules = 8.314
-  sec_in_yrs = 3.1558e7
-  lambda_f = 8.46e-17/sec_in_yrs
-  lambda_38 = 1.55125 * 1e-10/sec_in_yrs
-  lambda_32 = 4.9475*1e-11/sec_in_yrs
-  tau = 1.0./lambda_38
-
-
-
-# rmr0,kappa,c0,c1,c2,c3,alpha,
+# preallocate
 rho_r=0.0
 erho_s=0.0
 N_t_segs = length(T)+1
-
-#times = LinRange(5.0*1e6*sec_in_yrs,sec_in_yrs*1e6*0.01,N_t_segs)
 D0_rdaam = zeros(Tvv,N_t_segs+1)
 F = zeros(Tvv,N_t_segs+1)
 zeta = zeros(Tvv,N_t_segs+1)
 dzeta = zeros(Tvv,N_t_segs+1)
 dfdchi = zeros(Tvv,(N_t_segs-1))
 a = 0.0
+
+# calculate apatite grain damage and annealing
+
 for (ind,time_i) in enumerate(times)
 
   if ind>1
