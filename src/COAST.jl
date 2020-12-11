@@ -2,6 +2,8 @@
 Constrained Optimization and Sensitivity for Thermochronology
 R. Stoner
 2020
+
+See documentation for detailed explanation of COAST
 """
 module COAST
 
@@ -34,10 +36,9 @@ export fill_u_term2
 
 # constants
 export sec_in_yrs
+
 ## testing funcs
-"""
-Export checking
-"""
+
 function loaded_COAST()
   load_success = true
   return load_success
