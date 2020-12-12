@@ -26,10 +26,16 @@ end
 Let JuMP know about variables
 
 """
-function define_variables!(n_t_segs,n_data_pts,model,start_point_frac,lower_bound=273.0,upper_bound=410.0,T0=385.0,autodiff=true)
+function define_variables!(n_t_segs,n_data_pts,model,start_point_frac;upper_bound=410.0,lower_bound=273.0,T0=385.0,autodiff=true)
+  if isa(upper_bound,Number)
   T = @variable(model, [i=1:n_t_segs],base_name="T",lower_bound=lower_bound,
     upper_bound=map(constrain_upper,upper_bound,i,n_t_segs),
-    start=map(constraint_func,i,upper_bound,lower_bound,start_point_frac[i]))
+    start=map(constraint_func,i,maximum(upper_bound),maximum(lower_bound),start_point_frac[i]))
+  elseif isa(upper_bound,Array)
+    T = @variable(model, [i=1:n_t_segs],base_name="T",lower_bound=lower_bound,
+      upper_bound=map(constrain_upper,upper_bound[i],i,n_t_segs),
+      start=map(constraint_func,i,maximum(upper_bound),maximum(lower_bound),start_point_frac[i]))
+  end
   @variable(model, T0==385.0)
   @NLparameter(model, set_dev[i = 1:n_data_pts] == 0.0 * i)
 return T,T0,set_dev
