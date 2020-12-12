@@ -82,7 +82,7 @@ for (ind,time_i) in enumerate(times)
        dzeta[ind] = (D0_rdaam[ind-1]+D0_rdaam[ind])*(times[ind-1]-times[ind])/2
        zeta[ind] = zeta[ind-1]+dzeta[ind]
        F[ind] = -8*U238_0*tau38*exp(-times[ind]/tau38))
-
+       F[ind] += -6*Th232_0*tau32*exp(-times[ind]/tau32))
        #tau*(1.0-exp(-times[ind]/tau38))
 
        #
