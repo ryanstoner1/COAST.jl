@@ -30,13 +30,6 @@ times = t_and_T[1:n_t]
 T = t_and_T[n_t+1:end]
 Tvv = eltype(T)
 
-R_joules = 8.314
-sec_in_yrs = 3.1558e7
-lambda_f = 8.46e-17/sec_in_yrs
-lambda_38 = 1.55125 * 1e-10/sec_in_yrs
-lambda_32 = 4.9475*1e-11/sec_in_yrs
-tau = 1.0./lambda_38
-
 # preallocate
 rho_r=0.0
 erho_s=0.0
