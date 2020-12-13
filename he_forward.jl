@@ -6,11 +6,12 @@ const sec_in_yrs = 3.1558e7
 const lambda_f = 8.46e-17/sec_in_yrs
 const lambda_38 = 1.55125 * 1e-10/sec_in_yrs
 const lambda_32 = 4.9475*1e-11/sec_in_yrs
-const tau = 1.0./lambda_38
+const tau38 = 1.0./lambda_38
+const tau32 = 1.0./lambda_32
 
 const Na = 6.022e23  # avogadro number
 const atomic_mass_U238 = 238.050791  # g/mol
-
+const atomic_mass_Th232 = 232.03805  # g/mol, CIAAW value
 
 """
 
@@ -47,6 +48,8 @@ dzeta = zeros(Tvv,N_t_segs+1)
 dfdchi = zeros(Tvv,(N_t_segs-1))
 a = 0.0
 
+U238_0 = U238*(exp(lambda_38*times[1])) # U238 is measured at present
+Th232_0 = Th232*(exp(lambda_32*times[1]))
 # calculate apatite grain damage and annealing
 for (ind,time_i) in enumerate(times)
 
@@ -63,15 +66,16 @@ for (ind,time_i) in enumerate(times)
   end
 
   if ind==1
-    rho_v=(8/8)*U238_V*(exp(lambda_38*(time_i))-exp(lambda_38*(time_i-sec_in_yrs)))#+(6/8)*Th232_V*(exp(lambda_32*(time_i))-exp(lambda_32*(time_i-sec_in_yrs)))
+    rho_v=0.0#+(6/8)*Th232_V*(exp(lambda_32*(time_i))-exp(lambda_32*(time_i-sec_in_yrs)))
   else
     rho_v=(8/8)*U238_V*(exp(lambda_38*(times[ind-1]))-exp(lambda_38*(time_i)))#+(6/8)*Th232_V*(exp(lambda_32*(times[ind-1]))-exp(lambda_32*(time_i)))
+    rho_v+=(6/8)*Th232_V*(exp(lambda_32*(times[ind-1]))-exp(lambda_32*(time_i)))
   end
 
   erho_s += eta_q*rho_v*rho_r*L_dist*lambda_f/lambda_38
   if ind==1
-  D0_L2_rdaam = ((D0_L2*exp(-E_L./(R_joules*T0)))/
-          (exp(E_trap/(R_joules*T0))*(psi_rho*erho_s+omega_rho*erho_s^3)+1))
+  D0_L2_rdaam = 1e-4 #((D0_L2*exp(-E_L./(R_joules*T0)))/
+  #         (exp(E_trap/(R_joules*T0))*(psi_rho*erho_s+omega_rho*erho_s^3)+1))
   else
     D0_L2_rdaam = ((D0_L2*exp(-E_L/(R_joules*T[ind-1])))/
             (exp(E_trap/(R_joules*T[ind-1]))*(psi_rho*erho_s+omega_rho*erho_s^3)+1))
@@ -82,8 +86,8 @@ for (ind,time_i) in enumerate(times)
        #print("dzeta diff is: $dzeta_val \n")
        dzeta[ind] = (D0_rdaam[ind-1]+D0_rdaam[ind])*(times[ind-1]-times[ind])/2
        zeta[ind] = zeta[ind-1]+dzeta[ind]
-       F[ind] = tau*(1.0-exp(-times[ind]/tau))
-
+       F[ind] = 8*(U238_0/tau38)*tau38*(1.0-exp(-times[ind]/tau38))
+       F[ind] += 6*(Th232_0/tau32)*tau32*(1.0-exp(-times[ind]/tau32))
 
 
   end
@@ -104,9 +108,8 @@ zeta_end = zeta[end-1]
 uterm2 = fill_u_term2(L,n_iter,N_t_segs,F,dfdchi,dzeta,zeta,mu_n,uterm2,zeta_end)
 
 
-U238_0 = U238*(exp(lambda_38*times[end])) # U238 is measured at present
 
-uF = 8*(U238_0/tau)*uterm2*(8)/pi
+uF = uterm2*(8)/pi
 
 uF = uF/(pi*4/3) # [uF] = ppm - [He] @ modern day/after ingrowth
 #zerpl = D0_rdaam[1]
