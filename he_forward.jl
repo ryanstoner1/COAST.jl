@@ -44,10 +44,13 @@ a = 0.0
 U238_0 = U238*(exp(lambda_38*times[1])) # U238 is measured at present
 Th232_0 = Th232*(exp(lambda_32*times[1]))
 # calculate apatite grain damage and annealing
-for (ind,time_i) in enumerate(times)
+delt_rad = 4e6*sec_in_yrs
+t_rad = collect(1270*1e6*sec_in_yrs:-delt_rad:1e6*sec_in_yrs)
 
-  if ind>1
-    a = ((c0+c1*(log(times[ind-1]-time_i)-c2)/(log(1/T[ind-1])-c3))^(1/alpha)+1)^(-1)
+for (ind,time_i) in enumerate(t_rad)
+  (~,ind_save) = findmin(abs.(times.-time_i))
+  if ind_save>1
+    a = ((c0+c1*(log(t_rad[ind-1]-time_i)-c2)/(log(1/T[ind_save-1])-c3))^(1/alpha)+1)^(-1)
   else
     a = ((c0+c1*(log(sec_in_yrs)-c2)/(log(1/T0)-c3))^(1/alpha)+1)^(-1)
   end
@@ -58,35 +61,35 @@ for (ind,time_i) in enumerate(times)
     rho_r = 9.205*rclr^2-9.157*rclr+2.269
   end
 
-  if ind==1
+  if ind_save==1
     rho_v=0.0#+(6/8)*Th232_V*(exp(lambda_32*(time_i))-exp(lambda_32*(time_i-sec_in_yrs)))
   else
-    rho_v=(8/8)*U238_V*(exp(lambda_38*(times[ind-1]))-exp(lambda_38*(time_i)))#+(6/8)*Th232_V*(exp(lambda_32*(times[ind-1]))-exp(lambda_32*(time_i)))
-    rho_v+=(6/8)*Th232_V*(exp(lambda_32*(times[ind-1]))-exp(lambda_32*(time_i)))
+    rho_v=(8/8)*U238_V*(exp(lambda_38*(t_rad[ind-1]))-exp(lambda_38*(time_i)))#+(6/8)*Th232_V*(exp(lambda_32*(times[ind-1]))-exp(lambda_32*(time_i)))
+    rho_v+=(6/8)*Th232_V*(exp(lambda_32*(t_rad[ind-1]))-exp(lambda_32*(time_i)))
   end
 
   erho_s += eta_q*rho_v*rho_r*L_dist*lambda_f/lambda_38
-  if ind==1
+  if ind_save==1
   D0_L2_rdaam = 1e-4 #((D0_L2*exp(-E_L./(R_joules*T0)))/
   #         (exp(E_trap/(R_joules*T0))*(psi_rho*erho_s+omega_rho*erho_s^3)+1))
   else
-    D0_L2_rdaam = ((D0_L2*exp(-E_L/(R_joules*T[ind-1])))/
-            (exp(E_trap/(R_joules*T[ind-1]))*(psi_rho*erho_s+omega_rho*erho_s^3)+1))
+    D0_L2_rdaam = ((D0_L2*exp(-E_L/(R_joules*T[ind_save-1])))/
+            (exp(E_trap/(R_joules*T[ind_save-1]))*(psi_rho*erho_s+omega_rho*erho_s^3)+1))
   end
-  D0_rdaam[ind] = D0_L2_rdaam*L^2
-  if ind>1
-       dzeta_val = times[ind-1]-times[ind]
+  D0_rdaam[ind_save] = D0_L2_rdaam*L^2
+  if ind_save>1
+       dzeta_val = t_rad[ind-1]-t_rad[ind]
        #print("dzeta diff is: $dzeta_val \n")
-       dzeta[ind] = (D0_rdaam[ind-1]+D0_rdaam[ind])*(times[ind-1]-times[ind])/2
-       zeta[ind] = zeta[ind-1]+dzeta[ind]
-       F[ind] = 8*(U238_0/tau38)*tau38*(1.0-exp(-times[ind]/tau38))
-       F[ind] += 6*(Th232_0/tau32)*tau32*(1.0-exp(-times[ind]/tau32))
+       dzeta[ind_save] = (D0_rdaam[ind_save-1]+D0_rdaam[ind_save])*(t_rad[ind-1]-t_rad[ind])/2
+       zeta[ind_save] = zeta[ind_save-1]+dzeta[ind_save]
+       F[ind_save] = 8*(U238_0/tau38)*tau38*(1.0-exp(-t_rad[ind]/tau38))
+       F[ind_save] += 6*(Th232_0/tau32)*tau32*(1.0-exp(-t_rad[ind]/tau32))
 
 
   end
 
-  if (ind<N_t_segs+1) & (ind>1)
-    dfdchi[ind-1]=(F[ind-1]-F[ind])/(dzeta[ind])
+  if (ind_save<N_t_segs+1) & (ind_save>1)
+    dfdchi[ind_save-1]=(F[ind_save-1]-F[ind_save])/(dzeta[ind_save])
   end
 
 end
