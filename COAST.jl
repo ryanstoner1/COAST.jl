@@ -13,6 +13,7 @@ using JuMP
 using LinearAlgebra
 using PyCall
 using Random
+using Interpolations
 
 ## Helium diffusion
 include("he_preprocessing.jl")
@@ -23,7 +24,7 @@ include("he_vars_constraints.jl")
 export loaded_COAST
 
 # preprocessing
-export decompose_eu, ppm_to_atoms_per_volume
+export decompose_eu, ppm_to_atoms_per_volume, UTh_date_to_He_mols
 
 # treating setup
 export define_variables!, constraint_func, constrain_upper
