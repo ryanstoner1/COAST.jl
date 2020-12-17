@@ -175,11 +175,10 @@ function preallocate_diff_data(T)
   return t_equiv,N_t_segs,e_rho_s,rcb2,rho_r,D0,F,zeta,dzeta,dfdchi
 end
 
-function mod_constraints(T0,T::Tvv...) where {Tvv<:Real}
+function mod_constraints(T::Tvv...) where {Tvv<:Real}
 
 smooth_mat=Tridiagonal(ones(length(T)-1),-2*ones(length(T)),1*ones(length(T)-1))
 smooth_measure = zeros(Tvv,length(T))
-smooth_measure[1]=(T0-2*T[1]+T[2]).^2
 smooth_measure[2:end-1] = (smooth_mat[2:end-1,:]*collect(T)).^2
 smooth_tot = sum(smooth_measure)
 return smooth_tot
@@ -199,7 +198,7 @@ end
 
 function register_objective_function!(n_T_segs,model;model_constraints=mod_constraints,autodiff=true)
   model_constraints_sym = Symbol(model_constraints)
-  register(model,model_constraints_sym,1+n_T_segs,model_constraints,autodiff=autodiff)
+  register(model,model_constraints_sym,n_T_segs,model_constraints,autodiff=autodiff)
 
   return nothing
 end
