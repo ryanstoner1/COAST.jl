@@ -1,4 +1,5 @@
 using COAST
+using JuMP
 using Test
 
 @testset "COAST.jl" begin
@@ -81,5 +82,26 @@ end
     pre_he_t3 = (8*(U238_mol*exp(40*1e6*sec_in_yrs/τ38)-U238_mol)+
                  7*(U235_mol*exp(40*1e6*sec_in_yrs/τ35)-U235_mol))
     @test isapprox(mass_he_t3/pre_he_t3,1.0; atol = 4e-2)
+end
+
+@testset "he_vars_constraints.jl" begin
+     # basic setup
+     model1 = initialize_JuMP_model("mumps")
+     @variable(model1, T)
+     @test num_variables(model1)==1
+
+     # add bounds
+     model2 = initialize_JuMP_model("mumps")
+     @variable(model2, 273.0<=T<=400.0)
+     @test num_variables(model2)==1
+     @test has_lower_bound(T)
+     @test has_upper_bound(T)
+     print("Basic JuMP tests passed!\n")
+
+     model3 = initialize_JuMP_model("mumps")
+     time_segs = 10
+     define_variables!(time_segs-1,1,model3,0.1*ones(time_segs-1))
+     @test num_variables(model3)==time_segs-1
+     @test register_forward_model!(time_segs,model3)==true
 
 end
