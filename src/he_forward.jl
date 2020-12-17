@@ -187,7 +187,6 @@ end
 
 function register_forward_model!(n_t_segs,model;
     diffusion_func=rdaam_forward_diffusion,ancillary_func=fill_u_term)
-
   n_T_segs = n_t_segs-1
   forward_model = Symbol(diffusion_func)
   helper_func = Symbol(ancillary_func)
