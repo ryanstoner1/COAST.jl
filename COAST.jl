@@ -36,7 +36,7 @@ export register_forward_model!, register_objective_function!, set_objective_func
 export fill_u_term2
 
 # constants
-export sec_in_yrs
+export sec_in_yrs,τ38,τ35,τ32
 
 ## testing funcs
 
