@@ -10,7 +10,6 @@ module COAST
 ## Dependencies
 using Ipopt
 using JuMP
-using LinearAlgebra
 using PyCall
 using Random
 using Interpolations
