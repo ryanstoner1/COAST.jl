@@ -162,9 +162,9 @@ function preallocate_diff_data(T)
   Tvv = eltype(T)
   N_t_segs = length(T)+1
   e_rho_s= zeros(Tvv,N_t_segs)
-  t_equiv = zeros(N_t_segs)
+  t_equiv = zeros(Tvv,N_t_segs)
   D0 = zeros(Tvv,N_t_segs)
-  F = zeros(N_t_segs)
+  F = zeros(Tvv,N_t_segs)
   zeta = zeros(Tvv,N_t_segs)
   dzeta = zeros(Tvv,N_t_segs)
   dfdchi = zeros(Tvv,(N_t_segs-1))
@@ -187,10 +187,10 @@ end
 
 function register_forward_model!(n_t_segs,model;
     diffusion_func=rdaam_forward_diffusion,ancillary_func=fill_u_term)
-n_T_segs = n_t_segs-1
+
+  n_T_segs = n_t_segs-1
   forward_model = Symbol(diffusion_func)
   helper_func = Symbol(ancillary_func)
-
   register(model,forward_model,22+n_T_segs+n_t_segs,diffusion_func,autodiff=true)
   register(model,helper_func,10,ancillary_func,autodiff=true)
 
