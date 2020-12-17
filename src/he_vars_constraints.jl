@@ -36,9 +36,9 @@ function define_variables!(n_t_segs,n_data_pts,model,start_point_frac;upper_boun
       upper_bound=map(constrain_upper,upper_bound[i],i,n_t_segs),
       start=map(constraint_func,i,maximum(upper_bound),maximum(lower_bound),start_point_frac[i]))
   end
-  @variable(model, T0==T0)
+
   @NLparameter(model, set_dev[i = 1:n_data_pts] == 0.0 * i)
-return T,T0,set_dev
+return T,set_dev
 end
 
 """
