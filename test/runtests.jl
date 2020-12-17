@@ -139,5 +139,5 @@ end
                    U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,L,times...,T...)==3e-9)
      @NLobjective(model3,Min,mod_constraints(T...))
      optimize!(model3)
-     
+     @test termination_status(model3) == MOI.LOCALLY_SOLVED
 end
