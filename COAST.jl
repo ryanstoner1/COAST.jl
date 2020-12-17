@@ -12,6 +12,7 @@ using Ipopt
 using JuMP
 using PyCall
 using Random
+using LinearAlgebra
 using Interpolations
 
 ## Helium diffusion
