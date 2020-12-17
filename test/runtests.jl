@@ -98,11 +98,12 @@ end
      @test has_upper_bound(T)
      print("Basic JuMP tests passed!\n")
 
-     model3 = initialize_JuMP_model("mumps")
+     model3 = initialize_JuMP_model("mumps",print_level=1)
      time_segs = 10
      (T,set_val) = define_variables!(time_segs-1,1,model3,0.1*ones(time_segs-1))
      @test num_variables(model3)==time_segs-1
      @test register_forward_model!(time_segs,model3)==true
+     register_objective_function!(time_segs-1,model3)
 
      ## input
      # rdaam params
@@ -135,8 +136,8 @@ end
 
 
      constr1=@NLconstraint(model3,[i = 1:1],rdaam_forward_diffusion(alpha,c0,c1,c2,c3,rmr0,eta_q,L_dist,0.0,0.0,0.0,R,Ea,logD0_a2,n_iter,
-                   U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,L,times...,T...)==1e-9)
-     @NLobjective(model3,Min,1.0)
+                   U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,L,times...,T...)==3e-9)
+     @NLobjective(model3,Min,mod_constraints(T...))
      optimize!(model3)
-     print(value.(T))
+     
 end
