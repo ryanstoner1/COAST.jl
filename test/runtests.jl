@@ -40,7 +40,7 @@ end
     T = collect(LinRange(120.0,0.01,ceil(Int,n_T_pts)).+273.15)
     times = collect(LinRange(120.0,0.01,ceil(Int,n_T_pts)+1).*3.1558e7*1e6)
     mass_he_t1 = rdaam_forward_diffusion(alpha,c0,c1,c2,c3,rmr0,eta_q,L_dist,0.0,0.0,0.0,R,Ea,logD0_a2,n_iter,
-                  U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,L,times,T...)
+                  U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,L,times...,T...)
     pre_he_t1 = (8*(U238_mol*exp(55*1e6*sec_in_yrs/τ38)-U238_mol)+
                  7*(U235_mol*exp(55*1e6*sec_in_yrs/τ35)-U235_mol)) # Dodson value
     @test isapprox(mass_he_t1/pre_he_t1,1.0; atol = 6e-2)
@@ -61,7 +61,7 @@ end
     T = collect(LinRange(120.0,0.0,ceil(Int,n_T_pts)).+273.15)
     times = collect(LinRange(120.0,0.01,ceil(Int,n_T_pts)+1).*3.1558e7*1e6)
     mass_he_t2 = rdaam_forward_diffusion(alpha,c0,c1,c2,c3,0.83,eta_q,L_dist,psi,omega,Etrap,Rjoules,E_L,log10D0L_a2_rdaam,n_iter,
-                   U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,L,times,T...)
+                   U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,L,times...,T...)
     pre_he_t2 = (8*(U238_mol*exp(59*1e6*sec_in_yrs/τ38)-U238_mol)+
                  7*(U235_mol*exp(59*1e6*sec_in_yrs/τ35)-U235_mol))# Dodson value
     @test isapprox(mass_he_t2/pre_he_t2,1.0; atol = 3e-2)
@@ -78,7 +78,7 @@ end
     mass_he_t3 = rdaam_forward_diffusion(alpha,c0,c1,c2,c3,0.83,eta_q,L_dist,
                                          0.0,0.0,0.0,R,Ea,logD0_a2,n_iter,
                                          U238_mol,U238_V,U235_mol,U235_V,
-                                         Th232_mol,Th232_V,L,times,T...)
+                                         Th232_mol,Th232_V,L,times...,T...)
     pre_he_t3 = (8*(U238_mol*exp(40*1e6*sec_in_yrs/τ38)-U238_mol)+
                  7*(U235_mol*exp(40*1e6*sec_in_yrs/τ35)-U235_mol))
     @test isapprox(mass_he_t3/pre_he_t3,1.0; atol = 4e-2)
@@ -100,8 +100,43 @@ end
 
      model3 = initialize_JuMP_model("mumps")
      time_segs = 10
-     define_variables!(time_segs-1,1,model3,0.1*ones(time_segs-1))
+     (T,set_val) = define_variables!(time_segs-1,1,model3,0.1*ones(time_segs-1))
      @test num_variables(model3)==time_segs-1
      @test register_forward_model!(time_segs,model3)==true
 
+     ## input
+     # rdaam params
+     # eqs, fanning curvilinear, ketcham et al 07
+     alpha = 0.04672
+     c0 = 0.39528
+     c1 = 0.01073
+     c2 = -65.12969
+     c3 =  -7.91715
+     rmr0 = 0.79
+     eta_q = 0.91
+     L_dist = 8.1*1e-4 # cm (!)
+
+     # general params
+     U238 = 28*1e-6
+     R = 1.9872*1e-3
+     L = 60*1e-4 # m
+     times = collect(LinRange(120.0,0.01,time_segs).*3.1558e7*1e6)
+
+     # preprocess concentrations
+     (U238_V,U235_V,Th232_V,U238_mol,U235_mol,Th232_mol) = ppm_to_atoms_per_volume(U238,0.0,density=3.20)
+
+     """
+     check if RDAAM reproduces vanilla Durango
+     from farley et al, 00; fig. 1
+     """
+     L1 = 90*1e-4
+     logD0_a2 = log10(10^1.5/(L1^2)) # cm^2/s
+     Ea = 32.9
+
+
+     constr1=@NLconstraint(model3,[i = 1:1],rdaam_forward_diffusion(alpha,c0,c1,c2,c3,rmr0,eta_q,L_dist,0.0,0.0,0.0,R,Ea,logD0_a2,n_iter,
+                   U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,L,times...,T...)==1e-9)
+     @NLobjective(model3,Min,1.0)
+     optimize!(model3)
+     print(value.(T))
 end
