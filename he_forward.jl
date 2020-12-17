@@ -27,9 +27,10 @@ Calculate radioactive ingrowth and diffusion of He4 using modified eqns
 - `density::Float64`: the .
 """
 function rdaam_forward_diffusion(alpha,c0,c1,c2,c3,rmr0,eta_q,L_dist,psi,omega,Etrap,
-  R,Ea,logD0_a2,n_iter,U238,U238_V,U235,U235_V,Th232,Th232_V,L,times,
-  T...)
-
+  R,Ea,logD0_a2,n_iter,U238,U238_V,U235,U235_V,Th232,Th232_V,L,
+  tT...)
+  times = tT[1:ceil(length(tT)/2)]
+  T = tT[ceil(length(tT)/2)+1:end]
   kappa = 1.04 - rmr0
   rdaam2nd_root = 0.5274 # cutoff bellow which rho_r values can be negative
   rdaam2nd_root_cutoff = (rdaam2nd_root^(1/kappa))*(1-rmr0)+rmr0 # also prevents
