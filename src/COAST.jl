@@ -19,7 +19,7 @@ using Interpolations
 include("he_preprocessing.jl")
 include("he_forward.jl")
 include("he_vars_constraints.jl")
-
+include("he_func_registration.jl")
 # funcs for unit testing
 export loaded_COAST
 
