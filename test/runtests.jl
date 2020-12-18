@@ -97,7 +97,10 @@ end
      @test has_lower_bound(T)
      @test has_upper_bound(T)
      print("Basic JuMP tests passed!\n")
+end
 
+# basic model with custom constraints
+@testset "custom constraints" begin
      model3 = initialize_JuMP_model("mumps",print_level=1)
      time_segs = 10
      (T,set_val) = define_variables!(time_segs-1,1,model3,0.1*ones(time_segs-1))
@@ -126,10 +129,6 @@ end
      # preprocess concentrations
      (U238_V,U235_V,Th232_V,U238_mol,U235_mol,Th232_mol) = ppm_to_atoms_per_volume(U238,0.0,density=3.20)
 
-     """
-     check if RDAAM reproduces vanilla Durango
-     from farley et al, 00; fig. 1
-     """
      L1 = 90*1e-4
      logD0_a2 = log10(10^1.5/(L1^2)) # cm^2/s
      Ea = 32.9
@@ -140,4 +139,42 @@ end
      @NLobjective(model3,Min,mod_constraints(T...))
      optimize!(model3)
      @test termination_status(model3) == MOI.LOCALLY_SOLVED
+end
+
+@testset "one specified constraint" begin
+    model4 = initialize_JuMP_model("mumps",print_level=3)
+    time_segs = 10
+    (T,set_dev) = define_variables!(time_segs-1,1,model4,0.1*ones(time_segs-1))
+    register_objective_function!(time_segs-1,model4)
+    register_forward_model!(time_segs,model4)
+    ## input
+    # rdaam params
+    # eqs, fanning curvilinear, ketcham et al 07
+    alpha = 0.04672
+    c0 = 0.39528
+    c1 = 0.01073
+    c2 = -65.12969
+    c3 =  -7.91715
+    rmr0 = 0.79
+    eta_q = 0.91
+    L_dist = 8.1*1e-4 # cm (!)
+
+    # general params
+    U238 = 28*1e-6
+    R = 1.9872*1e-3
+    L = 60*1e-4 # m
+    times = collect(LinRange(120.0,0.01,time_segs).*3.1558e7*1e6)
+
+    # preprocess concentrations
+    (U238_V,U235_V,Th232_V,U238_mol,U235_mol,Th232_mol) = ppm_to_atoms_per_volume(U238,0.0,density=3.20)
+
+
+    L1 = 90*1e-4
+    logD0_a2 = log10(10^1.5/(L1^2)) # cm^2/s
+    Ea = 32.9
+    density = 3.2
+    He_conc = [3e-9]
+    rdaam_define_constraints(model4,density,set_dev,He_conc,L,times,T,U238_mol,U235_mol,Th232_mol,U238_V,U235_V,Th232_V)
+    optimize!(model4)
+    @test termination_status(model4) == MOI.LOCALLY_SOLVED
 end
