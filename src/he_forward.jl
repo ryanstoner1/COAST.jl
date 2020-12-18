@@ -82,9 +82,7 @@ Th232_0 = Th232*(exp(lambda_32*times[1])) # U238 is measured at present
          update_damage!(times,eta_q,L_dist,U238_V,U235_V,Th232_V,e_rho_s,ind,rho_r)
        end
 
-
-
-      # ## tested
+      # from Meesters & Dunai 02 formulation
       F[ind] = 8*(U238_0)*(-exp(-times[ind]/τ38))
       F[ind] += 7*(U235_0)*(-exp(-times[ind]/τ35))
       F[ind] += 6*(Th232_0)*(-exp(-times[ind]/τ32))
