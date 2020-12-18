@@ -18,9 +18,9 @@ function register_objective_function!(n_T_segs,model;model_constraints=mod_const
   return nothing
 end
 
-function set_objective_function!(model,T0,T)
+function set_objective_function!(model,T)
 
-@NLobjective(model,Min,mod_constraints(T0,T...))
+@NLobjective(model,Min,mod_constraints(T...))
 return nothing
 
 end

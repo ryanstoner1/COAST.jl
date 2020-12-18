@@ -66,6 +66,7 @@ for j in eachindex(U238)
                    R,E_L,logD0_a2,n_iter,U238[i],U238_V[i],U235[i],U235_V[i],Th232[i],Th232_V[i],L,
                    times...,T...)-set_val[i]+set_dev[i])==(set_val[i]*0.0))
     end
+    return my_constr
 end
 
 
