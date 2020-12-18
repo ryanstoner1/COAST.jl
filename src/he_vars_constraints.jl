@@ -44,7 +44,7 @@ end
 """
 Let JuMP know about constraints
 """
-function rdaam_define_constraints(model,density,set_dev,set_val,L,times,T0,T,U238,U235,Th232,U238_V,U235_V,Th232_V;
+function rdaam_define_constraints(model,density,set_dev,set_val,L,times,T,U238,U235,Th232,U238_V,U235_V,Th232_V;
    n_iter=20.0,E_L=122.3*1e3,c0=0.39528,c1=0.01073,c2=-65.12969,c3=-7.91715,
    alpha=0.04672,rmr0=0.79,logD0_a2=log10(exp(9.733)),E_trap=34*1e3,omega=1e-22,
    psi=1e-13,L_dist=8.1*1e-4,eta_q=0.91,R=Rjoules)
@@ -61,7 +61,7 @@ for j in eachindex(U238)
 
 
     elseif (j==n_data_constraints)
-      my_constr2 = @NLconstraint(model, [i = j:j],(rdaam_forward_diffusion(
+    my_constr2 = @NLconstraint(model, [i = j:j],(rdaam_forward_diffusion(
                    alpha,c0,c1,c2,c3,rmr0,eta_q,L_dist,psi,omega,E_trap,
                    R,E_L,logD0_a2,n_iter,U238[i],U238_V[i],U235[i],U235_V[i],Th232[i],Th232_V[i],L,
                    times...,T...)-set_val[i]+set_dev[i])==(set_val[i]*0.0))
