@@ -132,9 +132,9 @@ function update_damage!(times,eta_q,L_dist,U238_V,U235_V,Th232_V,e_rho_s,ind,rho
   return nothing
 end
 
-function arrhenius(L,T,R,Ea,logD0_a2)
+function arrhenius(L,T,R,Ea,log10D0_a2)
 
-  D = 10^(logD0_a2)*L^2.0.*exp(-Ea./(R*T))
+  D = 10^(log10D0_a2)*L^2.0.*exp(-Ea./(R*T))
 
   return D
 end
