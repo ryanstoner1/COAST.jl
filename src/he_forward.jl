@@ -29,8 +29,11 @@ Calculate radioactive ingrowth and diffusion of He4 using modified eqns
 function rdaam_forward_diffusion(alpha,c0,c1,c2,c3,rmr0,eta_q,L_dist,psi,omega,Etrap,
   R,Ea,logD0_a2,n_iter,U238,U238_V,U235,U235_V,Th232,Th232_V,L,
   tT...)
-  times = tT[1:ceil(length(tT)/2)]
-  T = tT[ceil(length(tT)/2)+1:end]
+  tTcopy = collect(tT)
+  times = tTcopy[1:ceil(Int,length(tT)/2)] # type unstable but fastest so far
+  T = tTcopy[ceil(Int,length(tT)/2)+1:end]
+
+
   kappa = 1.04 - rmr0
   rdaam2nd_root = 0.5274 # cutoff bellow which rho_r values can be negative
   rdaam2nd_root_cutoff = (rdaam2nd_root^(1/kappa))*(1-rmr0)+rmr0 # also prevents
@@ -46,30 +49,7 @@ function rdaam_forward_diffusion(alpha,c0,c1,c2,c3,rmr0,eta_q,L_dist,psi,omega,E
 
   n_times = length(times)
   dt_equiv = 0.0
-  for rev_ind in eachindex(times) # present to past
-    if rev_ind>1
-        t_dam = times[n_times-rev_ind+1]-times[n_times-rev_ind+2]+dt_equiv
-        rcb2_base = (c0 + c1*(log(t_dam)-c2)/(log((1.0/T[n_times-rev_ind+1]))-c3))
-        rcb2_fill_val = ((rcb2_base^(1.0/alpha))+1)^(-1)
-        for jj in 1:(n_times-rev_ind+1)
-            rcb2[rev_ind+jj-1,jj+1] = rcb2_fill_val
-            if rcb2[rev_ind+jj-1,jj+1]>= rdaam2nd_root_cutoff
-                rho_r[rev_ind+jj-1,jj+1] = ((rcb2_fill_val-rmr0)/(1.0-rmr0))^kappa
-                rho_r_copy = copy(rho_r[rev_ind+jj-1,jj+1]) # otherwise if AND elseif
 
-                if rho_r_copy>=0.765
-                   rho_r[rev_ind+jj-1,jj+1] = 1.6*rho_r[rev_ind+jj-1,jj+1] - 0.6
-                elseif rho_r_copy<0.765
-                   rho_r[rev_ind+jj-1,jj+1] = 9.205*rho_r[rev_ind+jj-1,jj+1]^2 - 9.157*rho_r[rev_ind+jj-1,jj+1] + 2.269
-                end
-            end
-        end
-        # use concept of equivalent time
-      if rev_ind<n_times
-        dt_equiv = exp((((((1.0/rcb2[rev_ind,2])-1.0)^alpha-c0)*(log(1.0/T[n_times-rev_ind])-c3))/c1)+c2)
-      end
-    end
-  end
 
 U238_0 = U238*(exp(lambda_38*times[1])) # U238 is measured at present
 U235_0 = U235*(exp(lambda_35*times[1])) # U238 is measured at present
@@ -78,7 +58,35 @@ Th232_0 = Th232*(exp(lambda_32*times[1])) # U238 is measured at present
 
   ## prep diffusivity input
   for ind in eachindex(times)
-       if ind>1
+
+        """
+        Damage calculation
+
+        """
+        if ind>1
+            t_dam = times[n_times-ind+1]-times[n_times-ind+2]+dt_equiv
+            rcb2_base = (c0 + c1*(log(t_dam)-c2)/(log((1.0/T[n_times-ind+1]))-c3))
+            rcb2_fill_val = ((rcb2_base^(1.0/alpha))+1)^(-1)
+            for jj in 1:(n_times-ind+1)
+                rcb2[ind+jj-1,jj+1] = rcb2_fill_val
+                if rcb2[ind+jj-1,jj+1]>= rdaam2nd_root_cutoff
+                    rho_r[ind+jj-1,jj+1] = ((rcb2_fill_val-rmr0)/(1.0-rmr0))^kappa
+                    rho_r_copy = copy(rho_r[ind+jj-1,jj+1]) # otherwise if AND elseif
+
+                    if rho_r_copy>=0.765
+                       rho_r[ind+jj-1,jj+1] = 1.6*rho_r[ind+jj-1,jj+1] - 0.6
+                    elseif rho_r_copy<0.765
+                       rho_r[ind+jj-1,jj+1] = 9.205*rho_r[ind+jj-1,jj+1]^2 - 9.157*rho_r[ind+jj-1,jj+1] + 2.269
+                    end
+                end
+            end
+            # use concept of equivalent time
+          if ind<n_times
+            dt_equiv = exp((((((1.0/rcb2[ind,2])-1.0)^alpha-c0)*(log(1.0/T[n_times-ind])-c3))/c1)+c2)
+          end
+        
+
+
          update_damage!(times,eta_q,L_dist,U238_V,U235_V,Th232_V,e_rho_s,ind,rho_r)
        end
 
@@ -175,10 +183,15 @@ end
 
 function mod_constraints(T::Tvv...) where {Tvv<:Real}
 
-smooth_mat=Tridiagonal(ones(length(T)-1),-2*ones(length(T)),1*ones(length(T)-1))
-smooth_measure = zeros(Tvv,length(T))
-smooth_measure[2:end-1] = (smooth_mat[2:end-1,:]*collect(T)).^2
-smooth_tot = sum(smooth_measure)
+#smooth_mat=Tridiagonal(ones(length(T)-1),-2*ones(length(T)),1*ones(length(T)-1))
+#smooth_measure[2:end-1] = (smooth_mat[2:end-1,:]*collect(T)).^2
+#smooth_tot = sum(smooth_measure)
+n_smooth = length(T)-2
+smooth_tot = 0.0
+for i in 1:n_smooth
+  smooth_tot += ((T[i]-2*T[i+1]+T[i+2])^2)*1e0
+end
+
 return smooth_tot
 
 end
