@@ -9,7 +9,7 @@ Pass JuMP model setup to Ipopt - a nonlinear solver
 See Ipopt documentation
 """
 function initialize_JuMP_model(linear_solver;print_level=5,tol=1e-3,max_iter=1000,
-  acceptable_constr_viol_tol=0.001)
+  constr_viol_tol=1e-3,obj_scaling_factor=1.0)
 
 
 # model = Model(() -> Ipopt.Optimizer(print_level=print_level,tol=tol,max_iter=max_iter,
@@ -17,7 +17,8 @@ function initialize_JuMP_model(linear_solver;print_level=5,tol=1e-3,max_iter=100
 
 model = Model(Ipopt.Optimizer)
 JuMP.set_optimizer_attributes(model,"print_level"=>print_level,"tol"=>tol,
-  "max_iter"=>max_iter,"acceptable_constr_viol_tol"=>acceptable_constr_viol_tol,"linear_solver"=>linear_solver)
+  "max_iter"=>max_iter,"constr_viol_tol"=>constr_viol_tol,"linear_solver"=>linear_solver,
+  "obj_scaling_factor"=>obj_scaling_factor)
 return model
 
 end
