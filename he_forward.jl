@@ -16,7 +16,52 @@ const atomic_mass_U235 = 235.04393 # g/mol
 const atomic_mass_U238 = 238.050791  # g/mol
 const atomic_mass_Th232 = 232.03805  # g/mol, CIAAW value
 
+function jac_rdaam_forward_diffusion(alpha,c0,c1,c2,c3,rmr0,eta_q,L_dist,psi,omega,Etrap,
+  R,Ea,logD0_a2,n_iter,U238,U238_V,U235,U235_V,Th232,Th232_V,L,
+  tT...)
 
+  tTcopy = collect(tT)
+  times = tTcopy[1:ceil(Int,length(tT)/2)] # type unstable but fastest so far
+  T = tTcopy[ceil(Int,length(tT)/2)+1:end]
+
+
+  kappa = 1.04 - rmr0
+  rdaam2nd_root = 0.5274 # cutoff bellow which rho_r values can be negative
+  rdaam2nd_root_cutoff = (rdaam2nd_root^(1/kappa))*(1-rmr0)+rmr0 # also prevents
+  # square root term from being negative
+
+  # preallocate
+  (t_equiv,N_t_segs,e_rho_s,rcb2,rho_r,D0,F,zeta,dzeta,dfdchi) = preallocate_diff_data(T) # 1st arg is only for rad dam
+
+
+  n_times = length(times)
+  dt_equiv = 0.0
+
+
+  U238_0 = U238*(exp(lambda_38*times[1])) # U238 is measured at present
+  U235_0 = U235*(exp(lambda_35*times[1])) # U238 is measured at present
+  Th232_0 = Th232*(exp(lambda_32*times[1])) # U238 is measured at present
+
+  rcb2_fill_val = 0.0
+  dt1_rcb2_fill_val = 0.0
+  ## prep diffusivity input
+  for ind in 1:2
+    if ind>1
+        t_dam = times[n_times-ind+1]-times[n_times-ind+2]+dt_equiv
+        rcb2_base = (c0 + c1*(log(t_dam)-c2)/(log((1.0/T[n_times-ind+1]))-c3))
+        rcb2_fill_val = ((rcb2_base^(1.0/alpha))+1)^(-1)
+
+        dt1_rcb2_numer = - (c1*(log(t_dam)-c2)*
+          (c0+c1*(log(t_dam)-c2)/(log(1/T[n_times-ind+1])-c3))^((1/alpha)-1))
+        dt1_rcb2_denom = rcb2_fill_val^2 * (1/(alpha*T[n_times-ind+1]*(log(1/T[n_times-ind+1])-c3)^2))
+
+        dt1_rcb2_fill_val = dt1_rcb2_numer*dt1_rcb2_denom
+    end
+
+  end
+
+  return rcb2_fill_val, dt1_rcb2_fill_val
+end
 
 """
 
@@ -84,7 +129,7 @@ Th232_0 = Th232*(exp(lambda_32*times[1])) # U238 is measured at present
           if ind<n_times
             dt_equiv = exp((((((1.0/rcb2[ind,2])-1.0)^alpha-c0)*(log(1.0/T[n_times-ind])-c3))/c1)+c2)
           end
-        
+
 
 
          update_damage!(times,eta_q,L_dist,U238_V,U235_V,Th232_V,e_rho_s,ind,rho_r)

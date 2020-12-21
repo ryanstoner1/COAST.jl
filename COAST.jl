@@ -31,7 +31,7 @@ export define_variables!, constraint_func, constrain_upper
 export rdaam_define_constraints
 
 # forward model
-export rdaam_forward_diffusion, initialize_JuMP_model
+export rdaam_forward_diffusion, jac_rdaam_forward_diffusion, initialize_JuMP_model
 export register_forward_model!, register_objective_function!, set_objective_function!
 export fill_u_term2
 
