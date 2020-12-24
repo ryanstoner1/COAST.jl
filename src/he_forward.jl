@@ -224,7 +224,7 @@ w_rho_r = diff(times)./minimum(-diff(times))
     uF = uterm*(8)/pi
     uF = (uF/(pi*4/3))
 
-     return uF, e_rho_s, rho_r
+     return uF
 
 end
 # end rdaam
