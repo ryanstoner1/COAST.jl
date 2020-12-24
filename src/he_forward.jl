@@ -44,23 +44,69 @@ function jac_rdaam_forward_diffusion(alpha,c0,c1,c2,c3,rmr0,eta_q,L_dist,psi,ome
 
   rcb2_fill_val = 0.0
   dt1_rcb2_fill_val = 0.0
+  dt_equiv = 0.0
+  dt_dt_1 = 0.0
+  dt_rho_r = zeros(size(rcb2))
   ## prep diffusivity input
   for ind in 1:2
+
     if ind>1
         t_dam = times[n_times-ind+1]-times[n_times-ind+2]+dt_equiv
         rcb2_base = (c0 + c1*(log(t_dam)-c2)/(log((1.0/T[n_times-ind+1]))-c3))
         rcb2_fill_val = ((rcb2_base^(1.0/alpha))+1)^(-1)
 
-        dt1_rcb2_numer = - (c1*(log(t_dam)-c2)*
-          (c0+c1*(log(t_dam)-c2)/(log(1/T[n_times-ind+1])-c3))^((1/alpha)-1))
-        dt1_rcb2_denom = rcb2_fill_val^2 * (1/(alpha*T[n_times-ind+1]*(log(1/T[n_times-ind+1])-c3)^2))
+        if ind==2
+          dt1_rcb2_numer = - (c1*(log(t_dam)-c2)*
+            (c0+c1*(log(t_dam)-c2)/(log(1/T[n_times-ind+1])-c3))^((1/alpha)-1))
+          dt1_rcb2_denom =  (1/(alpha*T[n_times-ind+1]*(log(1/T[n_times-ind+1])-c3)^2))
 
-        dt1_rcb2_fill_val = dt1_rcb2_numer*dt1_rcb2_denom
+          dt1_rcb2_fill_val = rcb2_fill_val^2*dt1_rcb2_numer*dt1_rcb2_denom
+
+          if ind>2
+            dt1_rcb2_numer1 = -c1*dt_dt_2*(c0+c1*((log(t_dam)-c2)/(log(1.0/T[n_times-ind+1])-c3)))^((1/alpha)-1.0)
+            dt1_rcb2_denom1 = 1.0/(alpha*t_dam*(log(1.0/T[n_times-ind+1])-c3))
+            dt1_rcb2_fill_val1 = rcb2_fill_val^2*dt1_rcb2_numer1*dt1_rcb2_denom1
+          end
+        end
+
+        if ind<n_times
+          dt_equiv = exp((((((1.0/rcb2[ind,2])-1.0)^alpha-c0)*(log(1.0/T[n_times-ind])-c3))/c1)+c2)
+
+          # TODO: not n_times-ind!
+
+          if ind==2
+            dt_dt_1 = -dt_equiv*((alpha*dt1_rcb2_fill_val*
+                              (log(1.0/T[n_times-ind+1])-c3)*
+                              ((1.0/rcb2[ind,2])-1.0)^(alpha-1.0))/
+                              (c1*rcb2[ind,2]^2))
+          end
+            dt_dt_2 = -dt_equiv*((1.0./rcb2_fill_val-1.0)^alpha -c0)/(c1*T[n_times-ind])
+        end
+
+        for jj in 1:(n_times-ind+1)
+            rcb2[ind+jj-1,jj+1] = rcb2_fill_val
+            if rcb2[ind+jj-1,jj+1]>= rdaam2nd_root_cutoff
+                rho_r[ind+jj-1,jj+1] = ((rcb2_fill_val-rmr0)/(1.0-rmr0))^kappa
+                rho_r_copy = copy(rho_r[ind+jj-1,jj+1]) # otherwise if AND elseif
+
+                if rho_r_copy>=0.765
+                    rho_r[ind+jj-1,jj+1] = 1.6*rho_r[ind+jj-1,jj+1] - 0.6
+                    dt_rho_r[ind+jj-1,jj+1] = -1.6*dt1_rcb2_fill_val*kappa*((rmr0-rcb2_fill_val)/(rmr0-1.0))^kappa/(rmr0-rcb2_fill_val)
+                    print(ind)
+                elseif rho_r_copy<0.765
+                    rho_r[ind+jj-1,jj+1] = 9.205*rho_r[ind+jj-1,jj+1]^2 - 9.157*rho_r[ind+jj-1,jj+1] + 2.269
+                    dt_rho_r[ind+jj-1,jj+1] = -((9.205*2*rho_r[ind+jj-1,jj+1]-9.157)*
+                    dt1_rcb2_fill_val*kappa*((rmr0-rcb2_fill_val)/(rmr0-1.0))^kappa/(rmr0-rcb2_fill_val))
+                end
+            end
+        end
+
+
+
     end
-
   end
 
-  return rcb2_fill_val, dt1_rcb2_fill_val
+  return rcb2_fill_val, rho_r, dt_rho_r
 end
 
 """
@@ -100,7 +146,37 @@ U238_0 = U238*(exp(lambda_38*times[1])) # U238 is measured at present
 U235_0 = U235*(exp(lambda_35*times[1])) # U238 is measured at present
 Th232_0 = Th232*(exp(lambda_32*times[1])) # U238 is measured at present
 
+"""
+Damage calculation
 
+"""
+
+for ind in eachindex(times)
+  if ind>1
+      t_dam = times[n_times-ind+1]-times[n_times-ind+2]+dt_equiv
+      rcb2_base = (c0 + c1*(log(t_dam)-c2)/(log((1.0/T[n_times-ind+1]))-c3))
+      rcb2_fill_val = ((rcb2_base^(1.0/alpha))+1)^(-1)
+      rcb2[ind,2] = rcb2_fill_val
+      for jj in 1:(ind-1)
+          if rcb2[ind,2]>=rdaam2nd_root_cutoff
+            rho_r[ind-jj,n_times-jj] = ((rcb2_fill_val-rmr0)/(1.0-rmr0))^kappa
+          #if rcb2[ind+jj-1,n_times-ind+1]>= rdaam2nd_root_cutoff
+              # rho_r[ind+jj-1,n_times-ind+1] = ((rcb2_fill_val-rmr0)/(1.0-rmr0))^kappa
+            rho_r_copy = rho_r[ind-jj,n_times-jj] # otherwise if AND elseif
+
+            if rho_r_copy>=0.765
+                rho_r[ind-jj,n_times-jj] = 1.6*rho_r[ind-jj,n_times-jj] - 0.6
+            elseif rho_r_copy<0.765
+                rho_r[ind-jj,n_times-jj] = 9.205*rho_r[ind-jj,n_times-jj]^2 - 9.157*rho_r[ind-jj,n_times-jj] + 2.269
+            end
+          end
+      end
+      # use concept of equivalent time
+    if ind<n_times
+      dt_equiv = exp((((((1.0/rcb2[ind,2])-1.0)^alpha-c0)*(log(1.0/T[n_times-ind])-c3))/c1)+c2)
+    end
+  end
+end
   ## prep diffusivity input
   for ind in eachindex(times)
 
@@ -109,26 +185,8 @@ Th232_0 = Th232*(exp(lambda_32*times[1])) # U238 is measured at present
 
         """
         if ind>1
-            t_dam = times[n_times-ind+1]-times[n_times-ind+2]+dt_equiv
-            rcb2_base = (c0 + c1*(log(t_dam)-c2)/(log((1.0/T[n_times-ind+1]))-c3))
-            rcb2_fill_val = ((rcb2_base^(1.0/alpha))+1)^(-1)
-            for jj in 1:(n_times-ind+1)
-                rcb2[ind+jj-1,jj+1] = rcb2_fill_val
-                if rcb2[ind+jj-1,jj+1]>= rdaam2nd_root_cutoff
-                    rho_r[ind+jj-1,jj+1] = ((rcb2_fill_val-rmr0)/(1.0-rmr0))^kappa
-                    rho_r_copy = copy(rho_r[ind+jj-1,jj+1]) # otherwise if AND elseif
 
-                    if rho_r_copy>=0.765
-                       rho_r[ind+jj-1,jj+1] = 1.6*rho_r[ind+jj-1,jj+1] - 0.6
-                    elseif rho_r_copy<0.765
-                       rho_r[ind+jj-1,jj+1] = 9.205*rho_r[ind+jj-1,jj+1]^2 - 9.157*rho_r[ind+jj-1,jj+1] + 2.269
-                    end
-                end
-            end
-            # use concept of equivalent time
-          if ind<n_times
-            dt_equiv = exp((((((1.0/rcb2[ind,2])-1.0)^alpha-c0)*(log(1.0/T[n_times-ind])-c3))/c1)+c2)
-          end
+
 
 
 
@@ -166,7 +224,7 @@ Th232_0 = Th232*(exp(lambda_32*times[1])) # U238 is measured at present
     uF = uterm*(8)/pi
     uF = (uF/(pi*4/3))
 
-     return uF
+     return uF,e_rho_s, rho_r
 
 end
 # end rdaam
@@ -180,7 +238,7 @@ function update_damage!(times,eta_q,L_dist,U238_V,U235_V,Th232_V,e_rho_s,ind,rho
   rho_v += (7/8)*U235_V*(exp(lambda_35*times[ind-1])-exp(lambda_35*times[ind]))
   rho_v += (6/8)*Th232_V*(exp(lambda_32*times[ind-1])-exp(lambda_32*times[ind]))
 
-  e_rho_s[ind]= 1.0*rho_v*sum(rho_r_final[ind,:])*eta_q*L_dist*lambda_f/lambda_38
+  e_rho_s[ind]= 1.0*rho_v*sum(rho_r_final[:,ind])*eta_q*L_dist*lambda_f/lambda_38
 
   return nothing
 end
