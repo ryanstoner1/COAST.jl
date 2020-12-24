@@ -106,7 +106,7 @@ function jac_rdaam_forward_diffusion(alpha,c0,c1,c2,c3,rmr0,eta_q,L_dist,psi,ome
     end
   end
 
-  return rcb2_fill_val, rho_r, dt_rho_r
+  return rcb2_fill_val
 end
 
 """
@@ -159,15 +159,13 @@ for ind in eachindex(times)
       rcb2[ind,2] = rcb2_fill_val
       for jj in 1:(ind-1)
           if rcb2[ind,2]>=rdaam2nd_root_cutoff
-            rho_r[ind-jj,n_times-jj] = ((rcb2_fill_val-rmr0)/(1.0-rmr0))^kappa
-          #if rcb2[ind+jj-1,n_times-ind+1]>= rdaam2nd_root_cutoff
-              # rho_r[ind+jj-1,n_times-ind+1] = ((rcb2_fill_val-rmr0)/(1.0-rmr0))^kappa
-            rho_r_copy = rho_r[ind-jj,n_times-jj] # otherwise if AND elseif
+            rho_r[n_times-ind+jj,n_times-jj] = ((rcb2_fill_val-rmr0)/(1.0-rmr0))^kappa
+            rho_r_copy = rho_r[n_times-ind+jj,n_times-jj] # otherwise if AND elseif
 
             if rho_r_copy>=0.765
-                rho_r[ind-jj,n_times-jj] = 1.6*rho_r[ind-jj,n_times-jj] - 0.6
+                rho_r[n_times-ind+jj,n_times-jj] = 1.6*rho_r[n_times-ind+jj,n_times-jj] - 0.6
             elseif rho_r_copy<0.765
-                rho_r[ind-jj,n_times-jj] = 9.205*rho_r[ind-jj,n_times-jj]^2 - 9.157*rho_r[ind-jj,n_times-jj] + 2.269
+                rho_r[n_times-ind+jj,n_times-jj] = 9.205*rho_r[n_times-ind+jj,n_times-jj]^2 - 9.157*rho_r[n_times-ind+jj,n_times-jj] + 2.269
             end
           end
       end
@@ -177,6 +175,8 @@ for ind in eachindex(times)
     end
   end
 end
+
+w_rho_r = diff(times)./minimum(-diff(times))
   ## prep diffusivity input
   for ind in eachindex(times)
 
@@ -224,7 +224,7 @@ end
     uF = uterm*(8)/pi
     uF = (uF/(pi*4/3))
 
-     return uF,e_rho_s, rho_r
+     return uF, e_rho_s, rho_r
 
 end
 # end rdaam
