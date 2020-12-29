@@ -84,7 +84,9 @@ for ind in eachindex(times)
   end
 end
 
-w_rho_r = diff(times)./minimum(-diff(times))
+w_rho_r = -diff(times)
+prepend!(w_rho_r,w_rho_r[1])
+append!(w_rho_r,1.0)
   ## prep diffusivity input
   for ind in eachindex(times)
 
@@ -98,7 +100,7 @@ w_rho_r = diff(times)./minimum(-diff(times))
 
 
 
-         update_damage!(times,eta_q,L_dist,U238_V,U235_V,Th232_V,e_rho_s,ind,rho_r)
+         update_damage!(times,eta_q,L_dist,U238_V,U235_V,Th232_V,e_rho_s,ind,rho_r,w_rho_r)
        end
 
       # from Meesters & Dunai 02 formulation
@@ -138,7 +140,7 @@ end
 # end rdaam
 
 ## calc new damage
-function update_damage!(times,eta_q,L_dist,U238_V,U235_V,Th232_V,e_rho_s,ind,rho_r_final)
+function update_damage!(times,eta_q,L_dist,U238_V,U235_V,Th232_V,e_rho_s,ind,rho_r_final,w_rho_r)
 
   dt = times[ind-1]-times[ind]
 
@@ -146,8 +148,9 @@ function update_damage!(times,eta_q,L_dist,U238_V,U235_V,Th232_V,e_rho_s,ind,rho
   rho_v += (7/8)*U235_V*(exp(lambda_35*times[ind-1])-exp(lambda_35*times[ind]))
   rho_v += (6/8)*Th232_V*(exp(lambda_32*times[ind-1])-exp(lambda_32*times[ind]))
 
-  e_rho_s[ind]= 1.0*rho_v*sum(rho_r_final[:,ind])*eta_q*L_dist*lambda_f/lambda_38
+  e_rho_s[ind]= 1.0*rho_v*sum(rho_r_final[end-(ind-1):(end-1),ind].*(w_rho_r[2:ind]./w_rho_r[ind]))*eta_q*L_dist*lambda_f/lambda_38
 
+#./w_rho_r[end-(ind-2):(end)]
   return nothing
 end
 
