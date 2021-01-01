@@ -23,9 +23,18 @@ Calculate radioactive ingrowth and diffusion of He4 using modified eqns
  from Meesters & Dunai, 2002 for single crystal.
 
 # Arguments:
-- `density::Float64`: the .
+- `alpha::Float64`: α -  1/5 fit factors from
+  [Flowers et al. 2009](https://doi.org/10.1016/j.gca.2009.01.015) and
+  [Ketcham et al. (2007)](https://doi.org/10.2138/am.2007.2281)
+- `c0`: 2/5 fit factor: Fanning Curvilinear fit
+- `c1`: 3/5 fit factor: Fanning Curvilinear fit
+- `c2`: 4/5 fit factor: Fanning Curvilinear fit
+- `c3`: 5/5 fit factor: Fanning Curvilinear fit
+- `rmr0`: reduced mean length of B2 apatite, see Ketcham et al., 2007
+- `eta_q`: product η*q; η - fission-track etching efficiency, q - scaling factor
+
 """
-function rdaam_forward_diffusion(alpha,c0,c1,c2,c3,rmr0,eta_q,L_dist,psi,omega,Etrap,
+function rdaam_forward_diffusion(alpha::Float64,c0,c1,c2,c3,rmr0,eta_q,L_dist,psi,omega,Etrap,
   R,Ea,logD0_a2,n_iter,U238,U238_V,U235,U235_V,Th232,Th232_V,L,
   tT...)
   tTcopy = collect(tT)
