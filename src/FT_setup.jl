@@ -1,9 +1,5 @@
 
 
-function FT_forward_age_distribution()
-  return nothing
-end
-
 """
 Dpar - input as either 5.0M or 5.5M case
 """
