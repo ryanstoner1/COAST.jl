@@ -8,26 +8,26 @@ end
 Dpar - input as either 5.0M or 5.5M case
 """
 function init_track_len(;calc_type="Dpar",Dpar=1.65,OH=0.0,Cl=0.0,rmr0=0.0,
-  a_vol=0.0,Ketcham07_5_5m=true,Ketcham07_5_0m=false,Donelick99=false,
-  orig_calc=true,custom_calc=false,custom_intercept=0.0,custom_slope=0.0,
+  a_vol=0.0,Ketcham07_5_5m=false,Ketcham07_5_0m=false,Donelick99=false,
+  orig_calc=true,custom=false,custom_intercept=0.0,custom_slope=0.0,
   custom_param=0.0,custom_c_intercept=0.0,custom_c_slope=0.0)
 
-  num_args = Ketcham07_5_5m+Ketcham07_5_0m+Donelick99+custom_calc
+  num_args = Ketcham07_5_5m+Ketcham07_5_0m+Donelick99+custom
   if isone(num_args)==false
     error("COASTerror: must select only one calculation method
           (probably need to set Ketcham07_5_5m=false)")
   end
 
-  if Ketcham5_5m==true
+  if Ketcham07_5_5m==true
     (l0_m,l0_c_m) = ketcham5_5_init_len(calc_type,orig_calc,Dpar,OH,Cl,rmr0,
                                         a_vol)
-  elseif Ketcham5_0m==true
+  elseif Ketcham07_5_0m==true
     (l0_m,l0_c_m) = ketcham5_0_init_len(calc_type,orig_calc,Dpar,OH,Cl,rmr0,
                                         a_vol)
   elseif Donelick99==true
     (l0_m,l0_c_m) = donelick99_init_len(calc_type,orig_calc,Dpar,OH,Cl,rmr0,
                                         a_vol)
-  elseif custom_calc==true
+  elseif custom==true
     l0_m = custom_slope*custom_param + custom_intercept
     l0_c_m = custom_c_slope*custom_param + custom_c_intercept
 
@@ -45,16 +45,17 @@ function ketcham5_5_init_len(calc_type,orig_calc,Dpar,OH,Cl,rmr0,a_vol)
   # 2nd val = unproj intercept
   # 3rd val = c proj slope
   # 4th val = c proj intercept
-  raw_data_ketcham5_5_hefty = Dict("Dpar"=>[],
-                                  "rmr0"=>[],
-                                  "OH_apfu"=>[],
-                                  "Cl_apfu"=>[]
-                                  "a_vol"=>[])
-  raw_data_ketcham5_5_original = Dict("Dpar"=>[],
-                                  "rmr0"=>[],
-                                  "OH_apfu"=>[],
-                                  "Cl_apfu"=>[]
-                                  "a_vol"=>[])
+  raw_data_ketcham5_5_hefty = Dict("Dpar"=>[0.283,15.63,0.35,15.72],
+                                  "rmr0"=>[0.0,16.14,0.0,16.35],
+                                  "OH_apfu"=>[0.638,16.04,0.932,16.18],
+                                  "Cl_apfu"=>[1.004,16.14,1.197,16.35],
+                                  "a_vol"=>[5.519,-35.6,6.4,-43.635])
+  raw_data_ketcham5_5_original = Dict("Dpar"=>[0.283,15.63,0.35,15.72],
+                                  "rmr0"=>[0.0,16.14,0.0,16.35],
+                                  "OH_apfu"=>[0.638,16.04,0.932,16.18],
+                                  "Cl_apfu"=>[1.004,16.14,1.197,16.35],
+                                  "a_vol"=>[5.519,-35.6,6.4,-43.635])
+
 
   if orig_calc==true # use as originally in paper
      (param_in,unproj_slope,unproj_intercept,c_slope,c_intercept
@@ -82,16 +83,17 @@ function ketcham5_0_init_len(calc_type,orig_calc,Dpar,OH,Cl,rmr0,a_vol)
   # 2nd val = unproj intercept
   # 3rd val = c proj slope
   # 4th val = c proj intercept
-  raw_data_ketcham5_0_hefty = Dict("Dpar"=>[],
-                                  "rmr0"=>[],
-                                  "OH_apfu"=>[],
-                                  "Cl_apfu"=>[]
-                                  "a_vol"=>[])
-  raw_data_ketcham5_0_original = Dict("Dpar"=>[],
-                                  "rmr0"=>[],
-                                  "OH_apfu"=>[],
-                                  "Cl_apfu"=>[]
-                                  "a_vol"=>[])
+  raw_data_ketcham5_0_hefty = Dict("Dpar"=>[0.258,15.391,0.287,15.582],
+                                  "rmr0"=>[0.0,15.936,0.0,16.187],
+                                  "OH_apfu"=>[0.0,15.936,0.0,16.187],
+                                  "Cl_apfu"=>[0.538,15.936,0.604,16.187],
+                                  "a_vol"=>[7.094,-50.702,7.184,-51.287])
+  raw_data_ketcham5_0_original = Dict("Dpar"=>[0.258,15.391,0.287,15.582],
+                                  "rmr0"=>[0.0,15.936,0.0,16.187],
+                                  "OH_apfu"=>[0.0,15.936,0.0,16.187],
+                                  "Cl_apfu"=>[0.538,15.936,0.604,16.187],
+                                  "a_vol"=>[7.094,-50.702,7.184,-51.287])
+
 
   if orig_calc==true # use as originally in paper
      (param_in,unproj_slope,unproj_intercept,c_slope,c_intercept
@@ -119,16 +121,16 @@ function donelick99_init_len(calc_type,orig_calc,Dpar,OH,Cl,rmr0,a_vol)
   # 2nd val = unproj intercept
   # 3rd val = c proj slope
   # 4th val = c proj intercept
-  raw_data_donelick99_hefty = Dict("Dpar"=>[],
-                                  "rmr0"=>[],
-                                  "OH_apfu"=>[],
-                                  "Cl_apfu"=>[]
-                                  "a_vol"=>[])
-  raw_data_donelick99_original = Dict("Dpar"=>[],
-                                  "rmr0"=>[],
-                                  "OH_apfu"=>[],
-                                  "Cl_apfu"=>[]
-                                  "a_vol"=>[])
+  raw_data_donelick99_hefty = Dict("Dpar"=>[0.283,15.63,0.35,15.72],
+                                  "rmr0"=>[0.0,16.14,0.0,16.35],
+                                  "OH_apfu"=>[0.638,16.04,0.932,16.18],
+                                  "Cl_apfu"=>[1.004,16.14,1.197,16.35],
+                                  "a_vol"=>[5.519,-35.6,6.4,-43.635])
+  raw_data_donelick99_original = Dict("Dpar"=>[0.283,15.63,0.35,15.72],
+                                  "rmr0"=>[0.0,16.14,0.0,16.35],
+                                  "OH_apfu"=>[0.638,16.04,0.932,16.18],
+                                  "Cl_apfu"=>[1.004,16.14,1.197,16.35],
+                                  "a_vol"=>[5.519,-35.6,6.4,-43.635])
 
   if orig_calc==true # use as originally in paper
      (param_in,unproj_slope,unproj_intercept,c_slope,c_intercept
