@@ -45,7 +45,7 @@ end
     pre_he_t1 = (8*(U238_mol*exp(60*1e6*sec_in_yrs/τ38)-U238_mol)+
                  7*(U235_mol*exp(60*1e6*sec_in_yrs/τ35)-U235_mol)) # Dodson value
     print("mass t1 predicted is: $pre_he_t1 \n")
-    @test isapprox(mass_he_t1/pre_he_t1,1.0; atol = 1e-1)
+    @test isapprox(mass_he_t1/pre_he_t1,1.0; rtol = 1e-2)
 
     """
     calculate erho
@@ -64,11 +64,10 @@ end
     times = collect(LinRange(120.0,0.01,ceil(Int,n_T_pts)+1).*3.1558e7*1e6)
     mass_he_t2 = rdaam_forward_diffusion(alpha,c0,c1,c2,c3,0.79,eta_q,L_dist,psi,omega,Etrap,Rjoules,E_L,log10D0L_a2_rdaam,n_iter,
                    U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,L,times...,T...)
-    pre_he_t2 = (8*(U238_mol*exp(46*1e6*sec_in_yrs/τ38)-U238_mol)+
-                 7*(U235_mol*exp(46*1e6*sec_in_yrs/τ35)-U235_mol))# Dodson value
-
-    # technically not comparing apples to apples - 46 Ma is redistributed value
-    @test isapprox(mass_he_t2/pre_he_t2,1.0; atol = 8e-2)
+    pre_he_t2 = (8*(U238_mol*exp(43.6*1e6*sec_in_yrs/τ38)-U238_mol)+
+                 7*(U235_mol*exp(43.6*1e6*sec_in_yrs/τ35)-U235_mol))# Dodson value
+    # non-redistributed value
+    @test isapprox(mass_he_t2/pre_he_t2,1.0; rtol = 1e-2)
 
     """
     wolf,98 fig. 5 - p3
@@ -85,7 +84,7 @@ end
                                          Th232_mol,Th232_V,L,times...,T...)
     pre_he_t3 = (8*(U238_mol*exp(40*1e6*sec_in_yrs/τ38)-U238_mol)+
                  7*(U235_mol*exp(40*1e6*sec_in_yrs/τ35)-U235_mol))
-    @test isapprox(mass_he_t3/pre_he_t3,1.0; atol = 3e-2)
+    @test isapprox(mass_he_t3/pre_he_t3,1.0; atol = 2e-2) # <1 Ma error
 end
 
 @testset "he_vars_constraints.jl" begin
@@ -152,7 +151,7 @@ end
 end
 
 @testset "one specified constraint" begin
-    model4 = initialize_JuMP_model("mumps",print_level=3)
+    model4 = initialize_JuMP_model("mumps",print_level=1)
     time_segs = 10
     (T,set_dev) = define_variables!(time_segs-1,1,model4,0.1*ones(time_segs-1))
     register_objective_function!(time_segs-1,model4)
@@ -190,24 +189,70 @@ end
 end
 
 @testset "FT_helper_funcs" begin
-     # Ketcham 99, Dpar case
-     (l0m_K99Dpar,l0cm_K99Dpar)= init_track_len_orig(Dpar=1.65,
-        Ketcham07_etch_corr=false)
+     # Ketcham 07, 5_5M, Dpar case
+    (l0m_K07_5_5Dpar,l0cm_K07_5_5Dpar)= init_track_len(calc_type="Dpar",
+                                                Dpar=1.65,Ketcham07_5_5m=true)
+    @test isapprox(l0m_K07_5_5Dpar,16.1,rtol=1e-3)
+    @test isapprox(l0cm_K07_5_5Dpar,16.3,rtol=1e-3)
 
-    @test isapprox(l0m_K99Dpar,16.1,rtol=1e-3)
-    # HeFTy here seems to be calculating 15.72 + 0.35*Dpar = 16.30 -- why?
-    @test isapprox(l0cm_K99Dpar,16.3,rtol=1e-2)
+    (l0m_K07_5_5rmr0,l0cm_K07_5_5rmr0)= init_track_len(calc_type="rmr0",
+                                                rmr0=1.65,Ketcham07_5_5m=true)
+    @test isapprox(l0m_K07_5_5rmr0,16.14,rtol=1e-3)
+    @test isapprox(l0cm_K07_5_5rmr0,16.35,rtol=1e-3)
 
-    # Ketcham 07, 5.0 M corr
-     Dpar_at_5_0M =  1.65
+    (l0m_K07_5_5cl_a,l0cm_K07_5_5cl_a)= init_track_len(calc_type="Cl_apfu",
+                                                Cl=1.65,Ketcham07_5_5m=true)
+    @test isapprox(l0m_K07_5_5cl_a,17.80,rtol=1e-3)
+    @test isapprox(l0cm_K07_5_5cl_a,18.33,rtol=1e-3)
 
-     (l0m_K07Dpar,l0cm_K07Dpar)= init_track_len_orig(Dpar=Dpar_at_5_0M,
-       Ketcham07_etch_corr=true)
-     Dpar_at_5_5M = 0.9231*Dpar_at_5_0M + 0.2515
-     (l0m_K07Dpar_check,l0cm_K07Dpar_check)= init_track_len_orig(Dpar=Dpar_at_5_5M,
-       Ketcham07_etch_corr=false)
-     @test isapprox(l0m_K07Dpar,l0m_K07Dpar_check,rtol=1e-4)
-     @test isapprox(l0cm_K07Dpar,l0cm_K07Dpar_check,rtol=1e-4)
-     # HeFTy seems to be calculating 15.39 + 0.26*Dpar for l0m @ 5.0M
-     # HeFTy seems to be calculating 15.58 + 0.28*Dpar for l0cm @ 5.0M
+    (l0m_K07_5_5a_vol,l0cm_K07_5_5a_vol)= init_track_len(calc_type="a_len",
+                                                a_vol=10.65,Ketcham07_5_5m=true)
+    @test isapprox(l0m_K07_5_5a_vol,23.18,rtol=1e-3)
+    @test isapprox(l0cm_K07_5_5a_vol,24.53,rtol=1e-3)
+
+    # Donelick99 case
+   (l0m_D99Dpar,l0cm_D99Dpar)= init_track_len(calc_type="Dpar",
+                                               Dpar=1.65,Ketcham07_5_5m=false,
+                                               Donelick99=true)
+   @test isapprox(l0m_D99Dpar,16.1,rtol=1e-3)
+   @test isapprox(l0cm_D99Dpar,16.3,rtol=1e-3)
+
+   (l0m_D99rmr0,l0cm_D99rmr0)= init_track_len(calc_type="rmr0",
+                                               rmr0=1.65,Donelick99=true)
+   @test isapprox(l0m_D99rmr0,16.14,rtol=1e-3)
+   @test isapprox(l0cm_D99rmr0,16.35,rtol=1e-3)
+
+   (l0m_D99cl_a,l0cm_D99cl_a)= init_track_len(calc_type="Cl_apfu",
+                                               Cl=1.65,Donelick99=true)
+   @test isapprox(l0m_D99cl_a,17.80,rtol=1e-3)
+   @test isapprox(l0cm_D99cl_a,18.33,rtol=1e-3)
+
+   # Ketcham 07, 5_0M, Dpar case
+  (l0m_K07_5_0Dpar,l0cm_K07_5_0Dpar)= init_track_len(calc_type="Dpar",
+                                              Dpar=1.65,Ketcham07_5_5m=false,
+                                              Ketcham07_5_0m=true)
+  @test isapprox(l0m_K07_5_0Dpar,15.82,rtol=1e-3)
+  @test isapprox(l0cm_K07_5_0Dpar,16.06,rtol=1e-3)
+
+  (l0m_K07_5_0rmr0,l0cm_K07_5_0rmr0)= init_track_len(calc_type="rmr0",
+                                              rmr0=1.65,Ketcham07_5_0m=true)
+  @test isapprox(l0m_K07_5_0rmr0,15.94,rtol=1e-3)
+  @test isapprox(l0cm_K07_5_0rmr0,16.19,rtol=1e-3)
+
+  (l0m_K07_5_0cl_a,l0cm_K07_5_0cl_a)= init_track_len(calc_type="Cl_apfu",
+                                              Cl=1.65,Ketcham07_5_0m=true)
+  @test isapprox(l0m_K07_5_0cl_a,16.82,rtol=1e-3)
+  @test isapprox(l0cm_K07_5_0cl_a,17.18,rtol=1e-3)
+
+  (l0m_K07_5_0a_vol,l0cm_K07_5_0a_vol)= init_track_len(calc_type="a_len",
+                                              a_vol=10.65,Ketcham07_5_0m=true)
+  @test isapprox(l0m_K07_5_0a_vol,24.85,rtol=1e-3)
+  @test isapprox(l0cm_K07_5_0a_vol,25.22,rtol=1e-3)
+
+  # test custom functionality
+  (l0m_cust,l0cm_cust)= init_track_len(custom=true,custom_param=1.65,
+  custom_intercept=3.0,custom_slope=0.5,custom_c_intercept=2.0,
+                                       custom_c_slope=1.0)
+   @test isapprox(l0m_cust,(1.65*0.5+3.0),rtol=1e-3)
+   @test isapprox(l0cm_cust,(1.65*1.0+2.0),rtol=1e-3)
 end
