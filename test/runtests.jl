@@ -68,7 +68,7 @@ end
                  7*(U235_mol*exp(46*1e6*sec_in_yrs/τ35)-U235_mol))# Dodson value
 
     # technically not comparing apples to apples - 46 Ma is redistributed value
-    @test isapprox(mass_he_t2/pre_he_t2,1.0; atol = 4e-2)
+    @test isapprox(mass_he_t2/pre_he_t2,1.0; atol = 8e-2)
 
     """
     wolf,98 fig. 5 - p3
@@ -105,6 +105,12 @@ end
 
 # basic model with custom constraints
 @testset "custom constraints" begin
+    # general params
+    U238 = 4*1e-6
+    R = 1.9872*1e-3
+    L = 60*1e-4 # m
+    n_T_pts = 100
+    n_iter = 60.0
      model3 = initialize_JuMP_model("mumps",print_level=1)
      time_segs = 10
      (T,set_val) = define_variables!(time_segs-1,1,model3,0.1*ones(time_segs-1))
@@ -181,4 +187,27 @@ end
     rdaam_define_constraints(model4,density,set_dev,He_conc,L,times,T,U238_mol,U235_mol,Th232_mol,U238_V,U235_V,Th232_V)
     optimize!(model4)
     @test termination_status(model4) == MOI.LOCALLY_SOLVED
+end
+
+@testset "FT_helper_funcs" begin
+     # Ketcham 99, Dpar case
+     (l0m_K99Dpar,l0cm_K99Dpar)= init_track_len_orig(Dpar=1.65,
+        Ketcham07_etch_corr=false)
+
+    @test isapprox(l0m_K99Dpar,16.1,rtol=1e-3)
+    # HeFTy here seems to be calculating 15.72 + 0.35*Dpar = 16.30 -- why?
+    @test isapprox(l0cm_K99Dpar,16.3,rtol=1e-2)
+
+    # Ketcham 07, 5.0 M corr
+     Dpar_at_5_0M =  1.65
+
+     (l0m_K07Dpar,l0cm_K07Dpar)= init_track_len_orig(Dpar=Dpar_at_5_0M,
+       Ketcham07_etch_corr=true)
+     Dpar_at_5_5M = 0.9231*Dpar_at_5_0M + 0.2515
+     (l0m_K07Dpar_check,l0cm_K07Dpar_check)= init_track_len_orig(Dpar=Dpar_at_5_5M,
+       Ketcham07_etch_corr=false)
+     @test isapprox(l0m_K07Dpar,l0m_K07Dpar_check,rtol=1e-4)
+     @test isapprox(l0cm_K07Dpar,l0cm_K07Dpar_check,rtol=1e-4)
+     # HeFTy seems to be calculating 15.39 + 0.26*Dpar for l0m @ 5.0M
+     # HeFTy seems to be calculating 15.58 + 0.28*Dpar for l0cm @ 5.0M
 end
