@@ -31,10 +31,14 @@ export decompose_eu, ppm_to_atoms_per_volume, UTh_date_to_He_mols
 export define_variables!, constraint_func, constrain_upper
 export rdaam_define_constraints
 
-# forward model
+# He forward model
 export rdaam_forward_diffusion, jac_rdaam_forward_diffusion, initialize_JuMP_model
 export register_forward_model!, register_objective_function!, set_objective_function!
-export fill_u_term2, init_track_len
+export fill_u_term2
+
+# FT forward model
+export init_track_len
+export FT_forward
 
 # constants
 export sec_in_yrs,τ38,τ35,τ32
