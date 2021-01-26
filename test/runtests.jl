@@ -188,7 +188,7 @@ end
     @test termination_status(model4) == MOI.LOCALLY_SOLVED
 end
 
-@testset "FT_helper_funcs" begin
+@testset "FT_setup.jl" begin
      # Ketcham 07, 5_5M, Dpar case
     (l0m_K07_5_5Dpar,l0cm_K07_5_5Dpar)= init_track_len(calc_type="Dpar",
                                                 Dpar=1.65,Ketcham07_5_5m=true)
@@ -255,4 +255,22 @@ end
                                        custom_c_slope=1.0)
    @test isapprox(l0m_cust,(1.65*0.5+3.0),rtol=1e-3)
    @test isapprox(l0cm_cust,(1.65*1.0+2.0),rtol=1e-3)
+end
+
+@testset "FT_forward.jl" begin
+
+    """
+    RDAAM type cooling
+    """
+    T = collect(LinRange(120.0,0.01,ceil(Int,n_T_pts)).+273.15)
+    times = collect(LinRange(120.0,0.01,ceil(Int,n_T_pts)+1).*3.1558e7*1e6)
+
+    alpha = 0.04672
+    beta = 0.0
+    c0 = 0.39528
+    c1 = 0.01073
+    c2 = -65.12969
+    c3 =  -7.91715
+
+    rcb2_test = FT_forward(alpha,beta,c0,c1,c2,c3,T,times)
 end
