@@ -9,4 +9,4 @@ import julia
 import dash
 import os
 print(os.getcwd())
-julia.install()
+
