@@ -5,6 +5,8 @@ Created on Wed Dec 30 16:38:11 2020
 
 @author: ryanstoner
 """
+import julia
 import dash
 import os
 print(os.getcwd())
+julia.install()
