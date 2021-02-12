@@ -1,0 +1,7 @@
+include coast_app/coast_app.min.js
+include coast_app/coast_app.min.js.map
+include coast_app/metadata.json
+include coast_app/package-info.json
+include README.md
+include LICENSE
+include package.json
