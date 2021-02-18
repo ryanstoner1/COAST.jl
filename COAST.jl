@@ -21,6 +21,7 @@ include("he_forward.jl")
 include("he_vars_constraints.jl")
 include("he_func_registration.jl")
 include("FT_setup.jl")
+include("FT_forward.jl")
 # funcs for unit testing
 export loaded_COAST
 
