@@ -24,6 +24,8 @@
   "author": "Ryan Stoner <rstoner@ucsb.edu>",
   "license": "MIT",
   "dependencies": {
+    "highcharts": "^9.0.0",
+    "highcharts-react-official": "^3.0.0",
     "ramda": "^0.26.1"
   },
   "devDependencies": {
