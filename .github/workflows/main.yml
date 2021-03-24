@@ -1,9 +1,3 @@
----
-name: 'deploy'
-
-# yamllint disable-line rule:truthy
-on:
----
 name: 'deploy'
 
 # yamllint disable-line rule:truthy
