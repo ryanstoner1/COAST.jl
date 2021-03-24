@@ -14,7 +14,7 @@ using PyCall
 using Random
 using LinearAlgebra
 using Interpolations
-
+using Distributions
 ## Helium diffusion
 include("he_preprocessing.jl")
 include("he_forward.jl")
