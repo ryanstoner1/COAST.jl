@@ -13,7 +13,7 @@ function launchServer(port)
     println("port set to $(port)")
 
     route("/") do
-        "COAST: Error"
+        "COAST: response from COAST"
     end
 
 route("/", method = POST) do
@@ -28,5 +28,5 @@ end
 
     Genie.AppServer.startup()
 end
-launchServer(8000)
-#launchServer(parse(Int, ARGS[1]))
+#launchServer(8000) # run if running locally
+launchServer(parse(Int, ARGS[1])) # run from dokku or heroku
