@@ -1,4 +1,5 @@
 using Genie
+using JSON
 using Genie.Router
 using Genie.Requests
 using Genie.Renderer
@@ -18,14 +19,14 @@ function launchServer(port)
 route("/", method = POST) do
   @show jsonpayload()
   @show rawpayload()
-  aa = jsonpayload()["name"] 
-  ab = jsonpayload()["lastName"] 
-  
+  aa = jsonpayload()["name"]
+  ab = jsonpayload()["lastName"]
+
   json("Mr.$(aa) $(ab) ")
-  
+
 end
 
     Genie.AppServer.startup()
 end
-
-launchServer(parse(Int, ARGS[1]))
+launchServer(8000)
+#launchServer(parse(Int, ARGS[1]))
