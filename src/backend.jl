@@ -22,11 +22,11 @@ route("/", method = POST) do
   aa = jsonpayload()["name"]
   ab = jsonpayload()["lastName"]
 
-  json("Mr.$(aa) $(ab) ")
+  return JSON.json("Mr.$(aa) $(ab) ")
 
 end
 
     Genie.AppServer.startup()
 end
-#launchServer(8000) # run if running locally
-launchServer(parse(Int, ARGS[1])) # run from dokku or heroku
+launchServer(8000) # run if running locally
+#launchServer(parse(Int, ARGS[1])) # run from dokku or heroku
