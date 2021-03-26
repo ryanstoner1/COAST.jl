@@ -1,1 +1,1 @@
-web: julia --project src/backend.jl $PORT
+web: gunicorn app:server
