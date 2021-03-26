@@ -1,1 +1,1 @@
-web: gunicorn --pythonpath COAST_app app:server
+web: gunicorn --pythonpath frontend app:server
