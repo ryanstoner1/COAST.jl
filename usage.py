@@ -90,42 +90,40 @@ def parse_contents(contents, filename, date):
             max_temp = np.array([])
             # default HeFTy line for envelope
             default_envelope_ind = 6 
+            
+            decoded = decoded.splitlines()
+            
+            for (ind,line) in enumerate(decoded):
+                if ind>1:
+                    line_split = line.split()
+                    
+                    if line_split[0].isdigit():
+                        # get constraint box parameters
+                        line_arr = np.array(line_split).astype(float)
+                        max_times = np.append(min_times, line_arr[1])
+                        min_times = np.append(min_times, line_arr[2])
+                        max_temp = np.append(min_times, line_arr[3])
+                        min_temp = np.append(min_times, line_arr[4])
 
-            # open file and loop thru lines
-            with open(filename) as f:
-                # lines are strings
-                for (ind,line) in enumerate(f):
-                    if ind>1:
-                        line_split = line.split()
-                        
-                        if line_split[0].isdigit():
-                            # get constraint box parameters
-                            line_arr = np.array(line_split).astype(float)
-                            max_times = np.append(min_times, line_arr[1])
-                            min_times = np.append(min_times, line_arr[2])
-                            max_temp = np.append(min_times, line_arr[3])
-                            min_temp = np.append(min_times, line_arr[4])
+                        # increment if more than default number of constraints
+                        if ind>3:
+                            n_extra_constraints += 1
 
-                            # increment if more than default number of constraints
-                            if ind>3:
-                                n_extra_constraints += 1
+                    # once constraints gotten get envelope of good and acceptable fits
+                    else:    
+                        if ind == default_envelope_ind+n_extra_constraints:
+                            good_time = np.array(line_split[3:]).astype(float)
+                        if ind== default_envelope_ind+n_extra_constraints+1:
+                            good_hi = np.array(line_split[4:]).astype(float)
+                        if ind== default_envelope_ind+n_extra_constraints+2:
+                            good_lo = np.array(line_split[4:]).astype(float)
+                        if ind == default_envelope_ind+n_extra_constraints+3:
+                            acc_time = np.array(line_split[3:]).astype(float)
+                        if ind == default_envelope_ind+n_extra_constraints+4:
+                            acc_hi = np.array(line_split[4:]).astype(float)
+                        if ind == default_envelope_ind+n_extra_constraints+5:
+                            acc_lo = np.array(line_split[4:]).astype(float)
 
-                        # once constraints gotten get envelope of good and acceptable fits
-                        else:    
-                            if ind == default_envelope_ind+n_extra_constraints:
-                                good_time = np.array(line_split[3:]).astype(float)
-                            if ind== default_envelope_ind+n_extra_constraints+1:
-                                good_hi = np.array(line_split[4:]).astype(float)
-                            if ind== default_envelope_ind+n_extra_constraints+2:
-                                good_lo = np.array(line_split[4:]).astype(float)
-                            if ind == default_envelope_ind+n_extra_constraints+3:
-                                acc_time = np.array(line_split[3:]).astype(float)
-                            if ind == default_envelope_ind+n_extra_constraints+4:
-                                acc_hi = np.array(line_split[4:]).astype(float)
-                            if ind == default_envelope_ind+n_extra_constraints+5:
-                                acc_lo = np.array(line_split[4:]).astype(float)
-            # close file at end
-            f.close()
 
     except Exception as e:
         print(e)
@@ -136,7 +134,7 @@ def parse_contents(contents, filename, date):
     return html.Div([
         html.H5(filename),
         html.H6(datetime.datetime.fromtimestamp(date)),
-        html.H4(good_lo),
+        html.H6(good_lo),
         # dash_table.DataTable(
         #     data=df.to_dict('records'),
         #     columns=[{'name': i, 'id': i} for i in df.columns]
@@ -170,7 +168,7 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
     [dash.dependencies.Input('submit-val', 'n_clicks')])
 def update_output_text(n_clicks):
     payload = {'name': ' Ron', 'lastName': 'Ericsson'}
-    r = requests.post("https://tdash.thermochron.org", json=payload)
+    r = requests.post("https://api.thermochron.org", json=payload)
     return 'The input value was {}.'.format(r.text)
 
 
