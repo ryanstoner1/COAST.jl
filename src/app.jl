@@ -1,6 +1,6 @@
 using Genie
 using Genie.Router
-using Genie.Requests # added
+using Genie.Requests ## added
 Genie.config.cors_headers["Access-Control-Allow-Methods"] ="GET,POST"
 using JSON
 
@@ -25,7 +25,6 @@ function launchServer(port)
    end
    Genie.AppServer.startup()
 end
-
 # using Genie
 # using Genie.Router
 # using Genie.Requests
