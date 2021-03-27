@@ -13,7 +13,7 @@ Documentation can be accessed [XXXXX - under construction]
 ---
 #### **COAST** can be accessed in three ways:
 ---
-1. Using the GUI at <coast.thermochron.org>
+1. Using the GUI at [coast.thermochron.org](coast.thermochron.org "COAST")
 2. Downloading COAST as a julia package.  
 Julia can be downloaded [here](https://julialang.org/downloads/ "available for Mac, Linux, Windows").  
 
