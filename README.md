@@ -10,15 +10,16 @@ a community-oriented resource for thermal history inversion
 ---
 
 Documentation can be accessed [XXXXX - under construction]
+
 ---
 #### **COAST** can be accessed in three ways:
 ---
 1. Using the GUI at [coast.thermochron.org](coast.thermochron.org "COAST")
-2. Downloading COAST as a julia package.  
+2. Downloading COAST as a Julia package.  
+
 Julia can be downloaded [here](https://julialang.org/downloads/ "available for Mac, Linux, Windows").  
 
-
-After julia is setup use the package mode (type *]* in the julia REPL):
+After julia is set up use the package mode (type *]* in the julia REPL):
 ```julia
     (v1.5) pkg> add https://github.com/ryanstoner1/COAST.jl
 ```  
