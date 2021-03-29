@@ -88,8 +88,13 @@ def parse_contents(contents, filename, date):
             max_times = np.array([])
             min_temp = np.array([])
             max_temp = np.array([])
+            date = np.array([])
+            hasreached_first_Tt = [False, False]
             # default HeFTy line for envelope
             default_envelope_ind = 6 
+            starting_Tt = False
+            upper_line_Tt = True
+            # open file and loop thru lines
             
             decoded = decoded.splitlines()
             
@@ -123,7 +128,34 @@ def parse_contents(contents, filename, date):
                             acc_hi = np.array(line_split[4:]).astype(float)
                         if ind == default_envelope_ind+n_extra_constraints+5:
                             acc_lo = np.array(line_split[4:]).astype(float)
+                    
+                    if line_split[0].decode("utf-8")=="Fit":
+                        starting_Tt = True
+                        starting_ind = ind+1
+                        
 
+                if starting_Tt and (ind>=starting_ind):
+                    line_split = line.split()
+                    
+                    if upper_line_Tt:
+                        
+                        date = np.append(date,line_split[1])
+                        time_Tt = np.array(line_split[4:]).astype(float)
+                        if not hasreached_first_Tt[0]:
+                            hasreached_first_Tt[0] = True
+                            time_Ma = np.empty((0,len(time_Tt)))
+                        time_Ma = np.vstack((time_Ma,time_Tt))
+                        upper_line_Tt = False
+                        
+                    else:
+                        
+                        T_Tt = np.array(line_split[4:]).astype(float)
+                        if not hasreached_first_Tt[1]:
+                            hasreached_first_Tt[1] = True
+                            T_celsius = np.empty((0,len(T_Tt)))
+                        T_celsius = np.vstack((T_celsius,T_Tt))
+                        
+                        upper_line_Tt = True
 
     except Exception as e:
         print(e)
@@ -133,8 +165,7 @@ def parse_contents(contents, filename, date):
 
     return html.Div([
         html.H5(filename),
-        html.H6(datetime.datetime.fromtimestamp(date)),
-        html.H6(good_lo),
+        html.H6(max_times),
         # dash_table.DataTable(
         #     data=df.to_dict('records'),
         #     columns=[{'name': i, 'id': i} for i in df.columns]
