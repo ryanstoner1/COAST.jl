@@ -95,8 +95,9 @@ def parse_contents(contents, filename, date):
             (good_acc_bounds, decoded_shortened) = txtextract.extract_Tt_bounds(decoded_shortened)
             (good_time, good_hi, good_lo, acc_time, acc_hi, acc_lo) = good_acc_bounds
 
-            # extract good and acceptable paths in hefty
-            (acc_time_interp, good_time_interp) = txtextract.interp_Tt(
+            # extract good and acceptable path temperatures in hefty
+            # at good and acceptable time bounds
+            (acc_temp_interp, good_temp_interp) = txtextract.interp_Tt(
                 good_time, acc_time, decoded_shortened)
             
 
