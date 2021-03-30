@@ -6,7 +6,7 @@ import requests
 import datetime
 import dash_auth
 import dash_table
-import txtextract
+import txt_read_preprocess
 import pandas as pd
 import numpy as np
 from SALib.analyze import sobol
@@ -88,17 +88,17 @@ def parse_contents(contents, filename, date):
             decoded = decoded.splitlines()
 
             # extract user-defined bounding boxes on T-t paths
-            (bound_box, n_extra_constraints, decoded_shortened) = txtextract.extract_Tt_constraints(
+            (bound_box, n_extra_constraints, decoded_shortened) = txt_read_preprocess.extract_Tt_constraints(
                 default_envelope_ind, decoded)
             (max_times, min_times, max_temp, min_temp) = bound_box
 
             # get upper and lower limits for good and acceptable bounds in HeFTy
-            (good_acc_bounds, decoded_shortened) = txtextract.extract_Tt_bounds(decoded_shortened)
+            (good_acc_bounds, decoded_shortened) = txt_read_preprocess.extract_Tt_bounds(decoded_shortened)
             (good_time, good_hi, good_lo, acc_time, acc_hi, acc_lo) = good_acc_bounds
 
             # extract good and acceptable path temperatures in hefty
             # at good and acceptable time bounds
-            (dates, acc_temp_interp, good_temp_interp) = txtextract.interp_Tt_finer_scale(
+            (dates, acc_temp_interp, good_temp_interp) = txt_read_preprocess.interp_Tt_finer_scale(
                 good_time, acc_time, decoded_shortened)
             
 
