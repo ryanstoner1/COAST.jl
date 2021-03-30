@@ -99,11 +99,11 @@ def interp_Tt(good_time, acc_time, decoded_shortened):
                 T_celsius = np.empty((0,len(T_Tt)))
             T_celsius = np.vstack((T_celsius,T_Tt))
             upper_line_Tt = True
-            good_time_interp_line = np.interp(good_time,time_Tt,T_Tt)
-            good_time_interp = np.vstack((good_time_interp,good_time_interp_line))
-            acc_time_interp_line = np.interp(acc_time,time_Tt,T_Tt)
-            acc_time_interp = np.vstack((acc_time_interp,acc_time_interp_line))
+            good_temp_interp_line = np.interp(good_time,time_Tt,T_Tt)
+            good_temp_interp = np.vstack((good_time_interp,good_temp_interp_line))
+            acc_temp_interp_line = np.interp(acc_time,time_Tt,T_Tt)
+            acc_temp_interp = np.vstack((acc_time_interp,acc_temp_interp_line))
             # need if statement?
             
             upper_line_Tt = True
-    return (acc_time_interp, good_time_interp)
+    return (acc_temp_interp, good_temp_interp)
