@@ -6,6 +6,7 @@ import requests
 import datetime
 import dash_auth
 import dash_table
+import txtextract
 import pandas as pd
 import numpy as np
 from dash.dependencies import Input, Output
@@ -82,80 +83,22 @@ def parse_contents(contents, filename, date):
             # Assume that the user uploaded an excel file
             df = pd.read_excel(io.BytesIO(decoded))
         elif 'txt' in filename:
-            # default no. of constraints in HeFTy is two
-            n_extra_constraints = 0 
-            min_times = np.array([])
-            max_times = np.array([])
-            min_temp = np.array([])
-            max_temp = np.array([])
-            date = np.array([])
-            hasreached_first_Tt = [False, False]
-            # default HeFTy line for envelope
             default_envelope_ind = 6 
-            starting_Tt = False
-            upper_line_Tt = True
-            # open file and loop thru lines
-            
             decoded = decoded.splitlines()
+
+            # extract user-defined bounding boxes on T-t paths
+            (bound_box, n_extra_constraints, decoded_shortened) = txtextract.extract_Tt_constraints(
+                default_envelope_ind, decoded)
+            (max_times, min_times, max_temp, min_temp) = bound_box
+
+            # get upper and lower limits for good and acceptable bounds in HeFTy
+            (good_acc_bounds, decoded_shortened) = txtextract.extract_Tt_bounds(decoded_shortened)
+            (good_time, good_hi, good_lo, acc_time, acc_hi, acc_lo) = good_acc_bounds
+
+            # extract good and acceptable paths in hefty
+            (acc_time_interp, good_time_interp) = txtextract.interp_Tt(
+                good_time, acc_time, decoded_shortened)
             
-            for (ind,line) in enumerate(decoded):
-                if ind>1:
-                    line_split = line.split()
-                    
-                    if line_split[0].isdigit():
-                        # get constraint box parameters
-                        line_arr = np.array(line_split).astype(float)
-                        max_times = np.append(min_times, line_arr[1])
-                        min_times = np.append(min_times, line_arr[2])
-                        max_temp = np.append(min_times, line_arr[3])
-                        min_temp = np.append(min_times, line_arr[4])
-
-                        # increment if more than default number of constraints
-                        if ind>3:
-                            n_extra_constraints += 1
-
-                    # once constraints gotten get envelope of good and acceptable fits
-                    else:    
-                        if ind == default_envelope_ind+n_extra_constraints:
-                            good_time = np.array(line_split[3:]).astype(float)
-                        if ind== default_envelope_ind+n_extra_constraints+1:
-                            good_hi = np.array(line_split[4:]).astype(float)
-                        if ind== default_envelope_ind+n_extra_constraints+2:
-                            good_lo = np.array(line_split[4:]).astype(float)
-                        if ind == default_envelope_ind+n_extra_constraints+3:
-                            acc_time = np.array(line_split[3:]).astype(float)
-                        if ind == default_envelope_ind+n_extra_constraints+4:
-                            acc_hi = np.array(line_split[4:]).astype(float)
-                        if ind == default_envelope_ind+n_extra_constraints+5:
-                            acc_lo = np.array(line_split[4:]).astype(float)
-                    
-                    if line_split[0].decode("utf-8")=="Fit":
-                        starting_Tt = True
-                        starting_ind = ind+1
-                        
-
-                if starting_Tt and (ind>=starting_ind):
-                    line_split = line.split()
-                    
-                    if upper_line_Tt:
-                        
-                        date = np.append(date,line_split[1])
-                        time_Tt = np.array(line_split[4:]).astype(float)
-                        if not hasreached_first_Tt[0]:
-                            hasreached_first_Tt[0] = True
-                            time_Ma = np.empty((0,len(time_Tt)))
-                        time_Ma = np.vstack((time_Ma,time_Tt))
-                        upper_line_Tt = False
-                        
-                    else:
-                        
-                        T_Tt = np.array(line_split[4:]).astype(float)
-                        if not hasreached_first_Tt[1]:
-                            hasreached_first_Tt[1] = True
-                            T_celsius = np.empty((0,len(T_Tt)))
-                        T_celsius = np.vstack((T_celsius,T_Tt))
-                        
-                        upper_line_Tt = True
 
     except Exception as e:
         print(e)
