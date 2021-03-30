@@ -9,6 +9,7 @@ import dash_table
 import txtextract
 import pandas as pd
 import numpy as np
+from SALib.analyze import sobol
 from dash.dependencies import Input, Output
 import dash_html_components as html
 import dash_core_components as dcc
@@ -97,7 +98,7 @@ def parse_contents(contents, filename, date):
 
             # extract good and acceptable path temperatures in hefty
             # at good and acceptable time bounds
-            (acc_temp_interp, good_temp_interp) = txtextract.interp_Tt(
+            (dates, acc_temp_interp, good_temp_interp) = txtextract.interp_Tt(
                 good_time, acc_time, decoded_shortened)
             
 
@@ -109,7 +110,7 @@ def parse_contents(contents, filename, date):
 
     return html.Div([
         html.H5(filename),
-        html.H6(max_times),
+        html.H6("Data loaded successfully!"),
         # dash_table.DataTable(
         #     data=df.to_dict('records'),
         #     columns=[{'name': i, 'id': i} for i in df.columns]
