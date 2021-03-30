@@ -30,11 +30,8 @@ class UsageTesting(unittest.TestCase):
 
         self.assertTrue(good_time[0] == 53.7312462538045)
 
-        (acc_temp_interp, good_temp_interp) = txtextract.interp_Tt(
+        (dates, acc_temp_interp, good_temp_interp) = txtextract.interp_Tt(
             good_time, acc_time, decoded_shortened)
-
-        
-        
 
 
 # # Define the model inputs
