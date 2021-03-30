@@ -28,7 +28,7 @@ auth = dash_auth.BasicAuth(
 )
 
 app.layout = html.Div([dcc.Tabs(id='tabs-example', value='tab-1', children=[
-    dcc.Tab(label='He Diffusion', children=[
+    dcc.Tab(label='forward model', children=[
         coast_app.CoastApp(
             id='input',
             value='my-value',
@@ -41,7 +41,7 @@ app.layout = html.Div([dcc.Tabs(id='tabs-example', value='tab-1', children=[
         # Hidden div inside the app that stores the intermediate value
         html.Div(id='intermediate-value', style={'display': 'none'}),
         html.Div(id='graph')]),
-    dcc.Tab(label='AFT', value="tab dos"),
+    dcc.Tab(label='inverse model', value="tab dos"),
     dcc.Tab(label='sensitivity analysis', value="tab-2", children=[
         html.Div([
             dcc.Upload(
