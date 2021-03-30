@@ -98,7 +98,7 @@ def parse_contents(contents, filename, date):
 
             # extract good and acceptable path temperatures in hefty
             # at good and acceptable time bounds
-            (dates, acc_temp_interp, good_temp_interp) = txtextract.interp_Tt(
+            (dates, acc_temp_interp, good_temp_interp) = txtextract.interp_Tt_finer_scale(
                 good_time, acc_time, decoded_shortened)
             
 

@@ -64,7 +64,7 @@ def extract_Tt_bounds(decoded_shortened):
     return (good_acc_bounds, decoded_shortened)
 
 # extract individual acceptable and good T-t paths
-def interp_Tt(good_time, acc_time, decoded_shortened):
+def interp_Tt_finer_scale(good_time, acc_time, decoded_shortened):
     dates = np.array([]) 
     # strip data between acc/good bounds and where T-t data starts
     decoded_shortened = decoded_shortened[12:]
