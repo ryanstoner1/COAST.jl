@@ -143,7 +143,7 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
     dash.dependencies.Output('button-output', 'children'),
     [dash.dependencies.Input('submit-val', 'n_clicks')])
 def update_output_text(n_clicks):
-    payload = {'name': ' Ron', 'lastName': 'Ericsson'}
+    payload = {'name': 'test var'}
     r = requests.post("https://api.thermochron.org", json=payload)
     return 'The input value was {}.'.format(r.text)
 
