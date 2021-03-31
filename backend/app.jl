@@ -73,6 +73,6 @@ function route_test_page_get_post(html_coast_introduction)
 end
 
 
-launchServer(8000) # run if running locally
-#launchServer(parse(Int, ARGS[1])) # run from dokku or heroku
+#launchServer(8000) # run if running locally
+launchServer(parse(Int, ARGS[1])) # run from dokku or heroku
 
