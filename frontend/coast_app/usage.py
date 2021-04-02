@@ -1,18 +1,24 @@
-import coast_app
+# external dependencies
 import io
 import dash
 import base64
+import chaospy 
 import requests
 import datetime
 import dash_auth
 import dash_table
-import txt_read_preprocess
-import pandas as pd
 import numpy as np
-from SALib.analyze import sobol
-from dash.dependencies import Input, Output
+import pandas as pd
+import plotly.express as px
 import dash_html_components as html
 import dash_core_components as dcc
+from dash.dependencies import Input, Output
+from chaospy.example import coordinates, exponential_model, distribution
+
+# internal: COAST
+import coast_app
+import sensitivity_analysis
+import txt_read_preprocess
 
 # Password for users
 VALID_USERNAME_PASSWORD_PAIRS = {
@@ -41,7 +47,7 @@ app.layout = html.Div([dcc.Tabs(id='tabs-example', value='tab-1', children=[
         # Hidden div inside the app that stores the intermediate value
         html.Div(id='intermediate-value', style={'display': 'none'}),
         html.Div(id='graph')]),
-    dcc.Tab(label='inverse model', value="tab dos"),
+    dcc.Tab(label='inverse model', value="tab two"),
     dcc.Tab(label='sensitivity analysis', value="tab-2", children=[
         html.Div([
             dcc.Upload(
@@ -66,8 +72,9 @@ app.layout = html.Div([dcc.Tabs(id='tabs-example', value='tab-1', children=[
             ),
             html.Div(id='output-data-upload'),
         ])
-    ]
-    )])
+    ]),
+    dcc.Tab(label='about', value="tab three")
+    ])
 ])
 
 
@@ -100,8 +107,6 @@ def parse_contents(contents, filename, date):
             # at good and acceptable time bounds
             (dates, acc_temp_interp, good_temp_interp) = txt_read_preprocess.interp_Tt_finer_scale(
                 good_time, acc_time, decoded_shortened)
-            
-
     except Exception as e:
         print(e)
         return html.Div([
@@ -150,6 +155,6 @@ def update_output_text(n_clicks):
 
 if __name__ == '__main__':
     app.run_server( port=8050,
-        host='0.0.0.0' )
+        host='0.0.0.0' ,debug=False)
 
 #
