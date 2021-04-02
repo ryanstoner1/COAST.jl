@@ -12,9 +12,9 @@ import pandas as pd
 import plotly.express as px
 import dash_html_components as html
 import dash_core_components as dcc
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 from chaospy.example import coordinates, exponential_model, distribution
-
+import dash_bootstrap_components as dbc
 # internal: COAST
 import coast_app
 import sensitivity_analysis
@@ -24,7 +24,7 @@ import txt_read_preprocess
 VALID_USERNAME_PASSWORD_PAIRS = {
     'thermo': 'Apatite3'
 }
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+external_stylesheets = [dbc.themes.BOOTSTRAP]
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets,title='COAST')
 server = app.server
@@ -33,28 +33,50 @@ auth = dash_auth.BasicAuth(
     VALID_USERNAME_PASSWORD_PAIRS
 )
 
-app.layout = html.Div([dcc.Tabs(id='tabs-example', value='tab-1', children=[
-    dcc.Tab(label='forward model', children=[
-        coast_app.CoastApp(
-            id='input',
-            value='my-value',
-            label='[10,20]'
-        ),
-        html.Div(["Input: ",
-                  dcc.Input(id='my-input', value=90, type='number')]),
-        html.Button('Submit', id='submit-val', n_clicks=0),
-        html.Div(id='button-output'),
-        # Hidden div inside the app that stores the intermediate value
-        html.Div(id='intermediate-value', style={'display': 'none'}),
-        html.Div(id='graph')]),
-    dcc.Tab(label='inverse model', value="tab two"),
-    dcc.Tab(label='sensitivity analysis', value="tab-2", children=[
+app.layout = html.Div([dcc.Tabs(id='tabs-example', value='tab zero', children=[
+    dcc.Tab(label='about', value="tab zero",children=[
         html.Div([
-            dcc.Upload(
+        html.H6("COAST program description")])
+    ]),
+    dcc.Tab(label='sensitivity analysis', value="tab one", children=[
+        html.Div([   
+            html.H2("Type of sensitivity analysis",style={
+                'padding': "10px",
+            }),         
+            dcc.RadioItems(
+                options=[
+                    {'label': ' Inverse', 'value': 'Inv'},
+                    {'label': ' Forward', 'value': 'For'},  
+                ],
+                value='Inv',
+                labelStyle={
+                    'display': 'block', 
+                    "padding-left": "10px",
+                    'font-weight': 300,
+                    'font-size': '20px',
+                }
+            ),
+            dcc.RadioItems(
+                options=[
+                    {'label': ' Using COAST', 'value': 'COAST'},
+                    {'label': ' Postprocessing HeFTy', 'value': 'HEF'}
+                ],
+                value='COAST',
+                id="collapse-radio",
+                labelStyle={
+                    'display': 'block', 
+                    "padding-left": "20px",
+                    'font-weight': 300,
+                    'font-size': '20px',
+                }
+            ),
+            dbc.Collapse(
+                dbc.Card(dbc.CardBody(
+                    dcc.Upload(
                 id='upload-data',
                 children=html.Div([
                     'Drag and Drop or ',
-                    html.A('Select'),
+                    html.A('Select', style={'color': 'blue','text-decoration': 'underline','cursor': 'pointer'}),
                     ' HeFTy files'
                 ]),
                 style={
@@ -69,14 +91,41 @@ app.layout = html.Div([dcc.Tabs(id='tabs-example', value='tab-1', children=[
                 },
                 # Allow multiple files to be uploaded
                 multiple=True
+            )
+                )),
+                id="collapse",
+                is_open='False'
             ),
             html.Div(id='output-data-upload'),
         ])
     ]),
-    dcc.Tab(label='about', value="tab three")
+    dcc.Tab(label='forward model', value="tab two", children=[
+        coast_app.CoastApp(
+            id='input',
+            value='my-value',
+            label='[10,20]'
+        ),
+        html.Div(["Input: ",
+                  dcc.Input(id='my-input', value=90, type='number')]),
+        html.Button('Submit', id='submit-val', n_clicks=0),
+        html.Div(id='button-output'),
+        # Hidden div inside the app that stores the intermediate value
+        html.Div(id='intermediate-value', style={'display': 'none'}),
+        html.Div(id='graph')]),
+    dcc.Tab(label='inverse model', value="tab three")
     ])
 ])
 
+@app.callback(
+    Output("collapse", "is_open"),
+    [Input("collapse-radio", "value")],
+    [State("collapse", "is_open")]
+)
+def toggle_collapse(n, is_open):
+    if "COAST":
+        return not is_open
+    else:
+        return is_open
 
 def parse_contents(contents, filename, date):
     content_type, content_string = contents.split(',')
@@ -152,9 +201,8 @@ def update_output_text(n_clicks):
     r = requests.post("https://api.thermochron.org", json=payload)
     return 'The input value was {}.'.format(r.text)
 
-
 if __name__ == '__main__':
     app.run_server( port=8050,
-        host='0.0.0.0' ,debug=False)
+        host='0.0.0.0' ,debug=True)
 
 #
