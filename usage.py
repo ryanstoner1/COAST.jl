@@ -5,6 +5,7 @@ import base64
 import chaospy 
 import requests
 import datetime
+import dash_daq as daq
 import dash_auth
 import dash_table
 import numpy as np
@@ -12,6 +13,7 @@ import pandas as pd
 import plotly.express as px
 import dash_html_components as html
 import dash_core_components as dcc
+from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, Output, State
 from chaospy.example import coordinates, exponential_model, distribution
 import dash_bootstrap_components as dbc
@@ -26,106 +28,207 @@ VALID_USERNAME_PASSWORD_PAIRS = {
 }
 external_stylesheets = [dbc.themes.BOOTSTRAP]
 
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets,title='COAST')
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets,title='COAST',suppress_callback_exceptions=True)
 server = app.server
 auth = dash_auth.BasicAuth(
     app,
     VALID_USERNAME_PASSWORD_PAIRS
 )
 
-app.layout = html.Div([dcc.Tabs(id='tabs-example', value='tab zero', children=[
-    dcc.Tab(label='about', value="tab zero",children=[
-        html.Div([
-        html.H6("COAST program description")])
-    ]),
-    dcc.Tab(label='sensitivity analysis', value="tab one", children=[
-        html.Div([   
-            html.H2("Type of sensitivity analysis",style={
-                'padding': "10px",
-            }),         
-            dcc.RadioItems(
-                options=[
-                    {'label': ' Inverse', 'value': 'Inv'},
-                    {'label': ' Forward', 'value': 'For'},  
-                ],
-                value='Inv',
-                labelStyle={
-                    'display': 'block', 
-                    "padding-left": "10px",
-                    'font-weight': 300,
-                    'font-size': '20px',
-                }
-            ),
-            dcc.RadioItems(
-                options=[
-                    {'label': ' Using COAST', 'value': 'COAST'},
-                    {'label': ' Postprocessing HeFTy', 'value': 'HEF'}
-                ],
-                value='COAST',
-                id="collapse-radio",
-                labelStyle={
-                    'display': 'block', 
-                    "padding-left": "20px",
-                    'font-weight': 300,
-                    'font-size': '20px',
-                }
-            ),
-            dbc.Collapse(
-                dbc.Card(dbc.CardBody(
-                    dcc.Upload(
-                id='upload-data',
-                children=html.Div([
-                    'Drag and Drop or ',
-                    html.A('Select', style={'color': 'blue','text-decoration': 'underline','cursor': 'pointer'}),
-                    ' HeFTy files'
-                ]),
-                style={
-                    'width': '100%',
-                    'height': '60px',
-                    'lineHeight': '60px',
-                    'borderWidth': '1px',
-                    'borderStyle': 'dashed',
-                    'borderRadius': '5px',
-                    'textAlign': 'center',
-                    'margin': '10px'
-                },
-                # Allow multiple files to be uploaded
-                multiple=True
+app.layout = html.Div([
+    dcc.Store(id='session'),
+    dcc.Location(id='url', refresh=False),
+    html.Div(
+        id="tabs_holder",
+        children=[dcc.Tabs(id="tabs", value='/page-1')]  # Defaults http://127.0.0.1:8050/ to http://127.0.0.1:8050/page-1. Otherwise, set value=None
+    ),
+
+    html.Div(id='page-content'),
+])
+
+page_1_layout = html.Div([
+    html.Div([
+    html.H6("COAST program description")]),
+    dcc.Link('Go to Page 1', href='/page-1'),
+    html.Br(),
+    dcc.Link('Go to Page 2', href='/page-2'),
+])
+
+page_2_layout = html.Div([
+    html.Div([   
+        html.H2("Type of sensitivity analysis",style={
+            'padding': "10px",
+        }),         
+        dcc.RadioItems(
+            options=[
+                {'label': ' Inverse', 'value': 'Inv'},
+                {'label': ' Forward', 'value': 'For'},  
+            ],
+            value='Inv',
+            labelStyle={
+                'display': 'block', 
+                "padding-left": "10px",
+                'font-weight': 300,
+                'font-size': '20px',
+            }
+        ),
+        dcc.RadioItems(
+            options=[
+                {'label': ' Using COAST', 'value': 'COAST'},
+                {'label': ' Postprocessing HeFTy', 'value': 'HEF'}
+            ],
+            value='COAST',
+            id="collapse-radio",
+            labelStyle={
+                'display': 'block', 
+                "padding-left": "20px",
+                'font-weight': 300,
+                'font-size': '20px',
+            }
+        ),
+        dbc.DropdownMenu(
+            label="Diffusion type",
+            children=[
+                dbc.DropdownMenuItem("U-Pb Apatite ", id="ap-button",href="/page-3"),
+                dbc.DropdownMenuItem("U-Th/He Apatite"),
+                dbc.DropdownMenuItem("U-Th/He Zircon"),
+                dbc.DropdownMenuItem("U-Th/He Titanite"),
+            ],
+        ),
+        dbc.Card(dbc.CardBody(
+            dcc.Upload(
+            id='upload-data',
+            children=html.Div([
+                'Drag and Drop or ',
+                html.A('Select', style={'color': 'blue','text-decoration': 'underline','cursor': 'pointer'}),
+                ' HeFTy files'
+            ]),
+            style={
+                'transition-duration': '0s',
+                'width': '100%',
+                'height': '60px',
+                'lineHeight': '60px',
+                'borderWidth': '1px',
+                'borderStyle': 'dashed',
+                'borderRadius': '5px',
+                'textAlign': 'center',
+                'margin': '10px'
+            },
+            # Allow multiple files to be uploaded
+            multiple=True
             )
-                )),
-                id="collapse",
-                is_open='False'
-            ),
-            html.Div(id='output-data-upload'),
-        ])
-    ]),
-    dcc.Tab(label='forward model', value="tab two", children=[
-        coast_app.CoastApp(
+        )),
+        html.Div(id='output-data-upload'),
+    ])
+]) 
+
+page_3_layout = html.Div([
+    html.H1('Inverse modeling'),
+    dbc.FormGroup(
+        [
+            dbc.Label("Diffusion Activation energy"),
+            html.P(children=[
+                html.Strong('Take Home Pay Total: '),
+                html.Span("snuggle")
+            ]),
+            html.Div([ 
+                html.Strong('Take Home Pay Total: '),
+                html.Span("snuggle"),        
+                dcc.Input(placeholder=" . . .", id="N-in", min=0, max=1e8,style = {'display': 'inline-block','margin-left':'10px','width': '5em'}),
+                dcc.Input(placeholder="Ea (kJ)", id="Ea-in", min=0, max=1e8,style = {'display': 'inline-block','margin-left':'10px','width': '5em'}),
+            ],style = {'display': 'block'}),
+            html.Div([
+                dcc.Input(placeholder="T segs", id="T-segs", min=0, max=1e8,style = {'display': 'inline-block','margin-left':'10px','width': '5em'}),
+                dcc.Input(placeholder="time", id="time", min=0, max=1e8,style = {'display': 'inline-block','margin-left':'10px','width': '5em'}),
+            ],style = {'display': 'block'}),
+            dbc.FormText("Type the activation energy in the box above"),
+        ]
+    ),
+    dcc.Link('Go to Page 1', href='/page-1'),
+    html.Br(),
+    dcc.Link('Go to Page 2', href='/page-2'),
+])
+
+@app.callback(Output('session', 'data'),
+                Input('ap-button', 'n_clicks'),
+                State('session', 'data'))
+def on_click(n_clicks, data):
+    if n_clicks is None:
+        # prevent the None callbacks is important with the store component.
+        # you don't want to update the store for nothing.
+        raise PreventUpdate
+
+    # Give a default data dict with 0 clicks if there's no data.
+    data = data or {'clicks': None}
+    data['clicks'] = 355#data['clicks'] + 1
+    return data
+
+# output the stored clicks in the table cell.
+@app.callback(Output('Ea-in', 'value'),
+                # Since we use the data prop in an output,
+                # we cannot get the initial data on load with the data prop.
+                # To counter this, you can use the modified_timestamp
+                # as Input and the data as State.
+                # This limitation is due to the initial None callbacks
+                # https://github.com/plotly/dash-renderer/pull/81
+                Input('session', 'modified_timestamp'),
+                State('session', 'data'))
+def on_data(ts, data):
+    if ts is None:
+        raise PreventUpdate
+
+    data = data or {}
+
+    return data.get('clicks', 0)
+
+
+page_4_layout = html.Div([
+    coast_app.CoastApp(
             id='input',
             value='my-value',
             label='[10,20]'
-        ),
-        html.Div(["Input: ",
-                  dcc.Input(id='my-input', value=90, type='number')]),
-        html.Button('Submit', id='submit-val', n_clicks=0),
-        html.Div(id='button-output'),
-        # Hidden div inside the app that stores the intermediate value
-        html.Div(id='intermediate-value', style={'display': 'none'}),
-        html.Div(id='graph')]),
-    dcc.Tab(label='inverse model', value="tab three")
-    ])
-])
+    ),
+    html.Div(["Input: ",
+                dcc.Input(id='my-input', value=90, type='number')]),
+    html.Button('Submit', id='submit-val', n_clicks=0),
+    html.Div(id='button-output'),
+    # Hidden div inside the app that stores the intermediate value
+    html.Div(id='intermediate-value', style={'display': 'none'}),
+    html.Div(id='graph'),
+]) 
 
-@app.callback(
-    Output("collapse", "is_open"),
-    [Input("collapse-radio", "value")],
-    [State("collapse", "is_open")]
-)
-def toggle_collapse(n, is_open):
-    if "COAST":
-        return not is_open
+@app.callback([Output('page-content', 'children'),
+               Output('tabs_holder', 'children')],
+              [Input('url', 'pathname')])
+def display_page(pathname):
+    tabs = [
+        dcc.Tabs(
+            id="tabs",
+            value=pathname,
+            children=[
+                dcc.Tab(label='About', value='/page-1'),
+                dcc.Tab(label='sensitivity analysis', value='/page-2'),
+                dcc.Tab(label='inverse modeling', value='/page-3'),
+                dcc.Tab(label='forward modeling', value='/page-4'),
+            ]
+        )
+    ]
+    if pathname == '/page-1':
+        return page_1_layout, tabs
+    elif pathname == '/page-2':
+        return page_2_layout, tabs
+    elif pathname == '/page-3':
+        return page_3_layout, tabs
+    elif pathname == '/page-4':
+        return page_4_layout, tabs
     else:
-        return is_open
+        return html.Div([html.H1('Error 404 - Page not found')])
+
+
+@app.callback(Output('url', 'pathname'),
+              [Input('tabs', 'value')])
+def tab_updates_url(value):
+    return value
 
 def parse_contents(contents, filename, date):
     content_type, content_string = contents.split(',')
