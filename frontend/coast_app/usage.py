@@ -10,10 +10,14 @@ import dash_table
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import dash_table.FormatTemplate as FormatTemplate
 import dash_html_components as html
 import dash_core_components as dcc
+
+from dash_table.Format import Sign
 from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, Output, State
+from collections import OrderedDict
 from chaospy.example import coordinates, exponential_model, distribution
 import dash_bootstrap_components as dbc
 # internal: COAST
@@ -44,6 +48,21 @@ app.layout = html.Div([
 
     html.Div(id='page-content'),
 ])
+
+df_typing_formatting = pd.DataFrame(OrderedDict([
+    ('date', np.zeros(29)),
+    ('error', np.zeros(29)),
+]))
+
+df2 = pd.DataFrame(OrderedDict([
+    ('date', np.zeros(29)),
+    ('error', np.zeros(29)),
+]))
+
+df3 = pd.DataFrame(OrderedDict([
+    ('date', np.zeros(29)),
+    ('error', np.zeros(29)),
+]))
 
 page_1_layout = html.Div([
     html.Div([
@@ -131,14 +150,20 @@ page_3_layout = html.Div([
                 html.Span("snuggle")
             ]),
             html.Div([ 
-                html.Strong('Take Home Pay Total: '),
-                html.Span("snuggle"),        
-                dcc.Input(placeholder=" . . .", id="N-in", min=0, max=1e8,style = {'display': 'inline-block','margin-left':'10px','width': '5em'}),
-                dcc.Input(placeholder="Ea (kJ)", id="Ea-in", min=0, max=1e8,style = {'display': 'inline-block','margin-left':'10px','width': '5em'}),
+                html.Span("D",style = {'display': 'inline-block','margin-left':'10px'}), 
+                html.Sub('0'),
+                dcc.Input(placeholder=" . . .", id="D0-in", min=0, max=1e8,style = {'display': 'block','margin-left':'10px','width': '5em'}),
+                html.Span("E",style = {'display': 'inline-block','margin-left':'10px'}), 
+                html.Sub('a'),
+                dcc.Input(placeholder="Ea (kJ)", id="Ea-in", min=0, max=1e8,style = {'display': 'block','margin-left':'10px','width': '5em'}),
             ],style = {'display': 'block'}),
             html.Div([
-                dcc.Input(placeholder="T segs", id="T-segs", min=0, max=1e8,style = {'display': 'inline-block','margin-left':'10px','width': '5em'}),
-                dcc.Input(placeholder="time", id="time", min=0, max=1e8,style = {'display': 'inline-block','margin-left':'10px','width': '5em'}),
+                html.Span("n",style = {'display': 'inline-block','margin-left':'10px'}), 
+                html.Sub('steps'),
+                dcc.Input(placeholder="number", id="n-segs", min=0, max=1e8,style = {'display': 'block','margin-left':'10px','width': '5em'}),
+                html.Span('\u0394',style = {'display': 'inline-block','margin-left':'10px'}),
+                html.Sub('r'),
+                dcc.Input(placeholder="time", id="time", min=0, max=1e8,style = {'display': 'block','margin-left':'10px','width': '5em'}),
             ],style = {'display': 'block'}),
             dbc.FormText("Type the activation energy in the box above"),
         ]
@@ -146,6 +171,51 @@ page_3_layout = html.Div([
     dcc.Link('Go to Page 1', href='/page-1'),
     html.Br(),
     dcc.Link('Go to Page 2', href='/page-2'),
+    html.H2("GB119C-10"),
+    dash_table.DataTable(
+        id='typing_formatting_1',
+        data=df_typing_formatting.to_dict('records'),
+        columns=[{
+            'id': 'average_04_2018',
+            'name': 'distance',
+            'type': 'numeric'
+        }, {
+            'id': 'change_04_2017_04_2018',
+            'name': 'concentration',
+            'type': 'numeric'
+        }],
+        editable=True
+    ),
+    html.H2("GB119C-32"),
+    dash_table.DataTable(
+        id='typing_formatting_2',
+        data=df2.to_dict('records'),
+        columns=[{
+            'id': 'average_04_2018',
+            'name': 'distance',
+            'type': 'numeric'
+        }, {
+            'id': 'change_04_2017_04_2018',
+            'name': 'concentration',
+            'type': 'numeric'
+        }],
+        editable=True
+    ),
+    html.H2("GB119C-42"),
+    dash_table.DataTable(
+        id='typing_formatting_3',
+        data=df3.to_dict('records'),
+        columns=[{
+            'id': 'average_04_2018',
+            'name': 'distance',
+            'type': 'numeric'
+        }, {
+            'id': 'change_04_2017_04_2018',
+            'name': 'concentration',
+            'type': 'numeric'
+        }],
+        editable=True
+    ),    
 ])
 
 @app.callback(Output('session', 'data'),
@@ -158,12 +228,14 @@ def on_click(n_clicks, data):
         raise PreventUpdate
 
     # Give a default data dict with 0 clicks if there's no data.
-    data = data or {'clicks': None}
-    data['clicks'] = 355#data['clicks'] + 1
+    data = data or {'D0': None, 'Ea': None}
+    data['Ea'] = 250*1e3
+    data['D0'] = 3.9*1e-10#data['clicks'] + 1
     return data
 
 # output the stored clicks in the table cell.
-@app.callback(Output('Ea-in', 'value'),
+@app.callback(Output('D0-in', 'value'),
+                Output('Ea-in', 'value'),
                 # Since we use the data prop in an output,
                 # we cannot get the initial data on load with the data prop.
                 # To counter this, you can use the modified_timestamp
@@ -178,7 +250,7 @@ def on_data(ts, data):
 
     data = data or {}
 
-    return data.get('clicks', 0)
+    return data.get('D0', 0),data.get('Ea', 0),
 
 
 page_4_layout = html.Div([
@@ -305,6 +377,6 @@ def update_output_text(n_clicks):
 
 if __name__ == '__main__':
     app.run_server( port=8050,
-        host='0.0.0.0' ,debug=False)
+        host='0.0.0.0' ,debug=True)
 
 #
