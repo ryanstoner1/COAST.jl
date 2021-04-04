@@ -5,7 +5,6 @@ import base64
 import chaospy 
 import requests
 import datetime
-import dash_daq as daq
 import dash_auth
 import dash_table
 import numpy as np
