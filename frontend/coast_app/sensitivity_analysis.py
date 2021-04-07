@@ -47,7 +47,7 @@ model_approximations = {
 
 sens_t = chaospy.Sens_m(
          model_approximations["halton"], distribution)
-print(sens_t[:,0])
+#print(sens_t[:,0])
 # for fig_idx, rule in enumerate(rules, start=1):
 #     pyplot.subplot(1, len(rules), fig_idx)
 
@@ -75,7 +75,8 @@ def get_input_distributions(input_means, input_stds):
     if len(input_means) == 1:
         distribution = chaospy.Normal(input_means[0],input_stds[0])
     else:
-        pass
+        dist_arr = [chaospy.Normal(i,j) for (i,j) in zip(input_means,input_stds)]
+        distribution = chaospy.J(*dist_arr)
     return distribution
 
 def polychaos_approximate_output(data, distribution, evaluations):
