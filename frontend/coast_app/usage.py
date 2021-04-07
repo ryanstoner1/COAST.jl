@@ -1,6 +1,7 @@
 # external dependencies
 import io
 import dash
+import json
 import base64
 import chaospy 
 import requests
@@ -49,17 +50,20 @@ app.layout = html.Div([
     html.Div(id='page-content'),
 ])
 
-df_typing_formatting = pd.DataFrame(OrderedDict([
-    ('date', np.zeros(29)),
-    ('error', np.zeros(29)),
+d1 = pd.DataFrame(OrderedDict([
+    ('distance', [0]*29),
+    ('date', [0]*29),
+    ('error', [0]*29),
 ]))
 
 df2 = pd.DataFrame(OrderedDict([
+    ('distance', [0]*29),
     ('date', np.zeros(29)),
     ('error', np.zeros(29)),
 ]))
 
 df3 = pd.DataFrame(OrderedDict([
+    ('distance', [0]*29),
     ('date', np.zeros(29)),
     ('error', np.zeros(29)),
 ]))
@@ -145,10 +149,6 @@ page_3_layout = html.Div([
     dbc.FormGroup(
         [
             dbc.Label("Diffusion Activation energy"),
-            html.P(children=[
-                html.Strong('Take Home Pay Total: '),
-                html.Span("snuggle")
-            ]),
             html.Div([ 
                 html.Span("D",style = {'display': 'inline-block','margin-left':'10px'}), 
                 html.Sub('0'),
@@ -159,8 +159,8 @@ page_3_layout = html.Div([
             ],style = {'display': 'block'}),
             html.Div([
                 html.Span("n",style = {'display': 'inline-block','margin-left':'10px'}), 
-                html.Sub('steps'),
-                dcc.Input(placeholder="number", id="n-segs", min=0, max=1e8,style = {'display': 'block','margin-left':'10px','width': '5em'}),
+                html.Sub('samples'),
+                dcc.Input(placeholder="number", id="n-samp", min=0, max=1e8,style = {'display': 'block','margin-left':'10px','width': '5em'}),
                 html.Span('\u0394',style = {'display': 'inline-block','margin-left':'10px'}),
                 html.Sub('r'),
                 dcc.Input(placeholder="time", id="time", min=0, max=1e8,style = {'display': 'block','margin-left':'10px','width': '5em'}),
@@ -168,50 +168,65 @@ page_3_layout = html.Div([
             dbc.FormText("Type the activation energy in the box above"),
         ]
     ),
-    dcc.Link('Go to Page 1', href='/page-1'),
+    dbc.Button("Process Data", id="table-button", className="mr-2"),
+    html.Span(id="example-output", style={"vertical-align": "middle"}),
     html.Br(),
-    dcc.Link('Go to Page 2', href='/page-2'),
+    dbc.Button("Process PCE", id="pce-button", className="mr-1"),
+    html.Span(id="pce-output", style={"vertical-align": "middle"}),
     html.H2("GB119C-10"),
     dash_table.DataTable(
-        id='typing_formatting_1',
-        data=df_typing_formatting.to_dict('records'),
+        id='t1',
+        data=d1.to_dict('records'),
         columns=[{
-            'id': 'average_04_2018',
+            'id': 'distance',
             'name': 'distance',
             'type': 'numeric'
         }, {
-            'id': 'change_04_2017_04_2018',
-            'name': 'concentration',
+            'id': 'date',
+            'name': 'date',
+            'type': 'numeric'
+        }, {
+            'id': 'error',
+            'name': 'error',
             'type': 'numeric'
         }],
         editable=True
     ),
+    html.Div(id='t1_out'),
     html.H2("GB119C-32"),
     dash_table.DataTable(
-        id='typing_formatting_2',
+        id='t2',
         data=df2.to_dict('records'),
         columns=[{
-            'id': 'average_04_2018',
+            'id': 'distance',
             'name': 'distance',
             'type': 'numeric'
+        },{
+            'id': 'date',
+            'name': '06/38',
+            'type': 'numeric'
         }, {
-            'id': 'change_04_2017_04_2018',
-            'name': 'concentration',
+            'id': 'error',
+            'name': '2 sigma (abs)',
             'type': 'numeric'
         }],
         editable=True
     ),
     html.H2("GB119C-42"),
     dash_table.DataTable(
-        id='typing_formatting_3',
+        id='t3',
         data=df3.to_dict('records'),
         columns=[{
-            'id': 'average_04_2018',
+            'id': 'distance',
             'name': 'distance',
             'type': 'numeric'
+        },{
+            'id': 'date',
+            'name': '06/38',
+            'type': 'numeric'
         }, {
-            'id': 'change_04_2017_04_2018',
-            'name': 'concentration',
+            'id': 'error',
+            'name': '2 sigma (abs)',
             'type': 'numeric'
         }],
         editable=True
@@ -301,6 +316,84 @@ def display_page(pathname):
 def tab_updates_url(value):
     return value
 
+
+
+
+@app.callback(Output('output-data-upload', 'children'),
+              Input('upload-data', 'contents'),
+              dash.dependencies.State('upload-data', 'filename'),
+              dash.dependencies.State('upload-data', 'last_modified'))
+def update_output(list_of_contents, list_of_names, list_of_dates):
+    if list_of_contents is not None:
+        children = [
+            parse_contents(c, n, d) for c, n, d in
+            zip(list_of_contents, list_of_names, list_of_dates)]
+        return children
+
+
+@app.callback(
+    dash.dependencies.Output('button-output', 'children'),
+    [dash.dependencies.Input('submit-val', 'n_clicks')])
+def update_output_text(n_clicks):
+    payload = {'name': 'test var','lastName': 'test var'}
+    r = requests.post("https://api.thermochron.org", json=payload)
+    return 'The input value was {}.'.format(r.text)
+
+@app.callback(
+    Output('t1_out', 'children'),
+    Input('t1', 'data'),
+    Input('t1', 'columns'))
+def display_output(rows, columns):
+    if rows is None:
+        raise PreventUpdate
+    df = pd.DataFrame(rows, columns=[c['name'] for c in columns])
+    result = json.dumps(df["date"].tolist())
+    return result
+
+@app.callback(
+    Output("example-output", "children"), [Input("table-button", "n_clicks")],Input('t1', 'data'),
+    Input('t1', 'columns'),Input('Ea-in', 'value'),Input('D0-in', 'value'),
+)
+def on_button_click(n,rows1,columns1,Ea,D0):
+    if n is None:
+        return "Not clicked."
+    else:
+        n_t_segs = 6
+        df1 = pd.DataFrame(rows1, columns=[c['name'] for c in columns1])
+        distance = (df1["distance"].tolist())
+        dr = (distance[2] - distance[1])/1e6
+        Lmax = max(distance)/1e6
+        dates = df1["date"].tolist()
+        tmax = max(dates)
+        tmin = min(dates)
+        dates= [dates]
+        errors =  [df1["error"].tolist()]
+        print(str(dates))
+        payload = {"function_to_run":"zonation","zon_n_t_segs": str(n_t_segs),
+            "Ea":str(Ea),"D0":str(D0),"U38Pb06":str(dates),"sigU38Pb06":str(errors),"Lmax":str(Lmax),"tmax":str(tmax),
+        "tmin":str(tmin),"dr":str(dr),"distance":str(distance)}
+
+        r = requests.post("http://0.0.0.0:8000/model", json=payload)
+        print(r.text)
+        return "200"
+
+@app.callback(
+    Output("pce-output", "children"), [Input("pce-button", "n_clicks")],Input('n-samp',"value")
+)
+def on_button_click(n,nsamp):
+    if n is None:
+        return "Not clicked."
+    else:
+        nsamp = int(nsamp)
+        in_means = [20.0,10.0]
+        in_stds = [20.0,10.0]
+        distributions = sensitivity_analysis.get_input_distributions(in_means, in_stds)
+        samples = distributions.sample(nsamp, rule="halton")
+        # evaluations = numpy.array([exponential_model(sample,coordinates=coordinates)
+        #     for sample in samples.T])
+
+        return "pce success {}!".format(nsamp)
+
 def parse_contents(contents, filename, date):
     content_type, content_string = contents.split(',')
 
@@ -353,27 +446,6 @@ def parse_contents(contents, filename, date):
             'wordBreak': 'break-all'
         })
     ])
-
-
-@app.callback(Output('output-data-upload', 'children'),
-              Input('upload-data', 'contents'),
-              dash.dependencies.State('upload-data', 'filename'),
-              dash.dependencies.State('upload-data', 'last_modified'))
-def update_output(list_of_contents, list_of_names, list_of_dates):
-    if list_of_contents is not None:
-        children = [
-            parse_contents(c, n, d) for c, n, d in
-            zip(list_of_contents, list_of_names, list_of_dates)]
-        return children
-
-
-@app.callback(
-    dash.dependencies.Output('button-output', 'children'),
-    [dash.dependencies.Input('submit-val', 'n_clicks')])
-def update_output_text(n_clicks):
-    payload = {'name': 'test var'}
-    r = requests.post("https://api.thermochron.org", json=payload)
-    return 'The input value was {}.'.format(r.text)
 
 if __name__ == '__main__':
     app.run_server( port=8050,
