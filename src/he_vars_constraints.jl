@@ -33,7 +33,7 @@ function define_variables!(n_t_segs,n_data_pts,model,start_point_frac;upper_boun
     upper_bound=map(constrain_upper,upper_bound,i,n_t_segs),
     start=map(constraint_func,i,maximum(upper_bound),maximum(lower_bound),start_point_frac[i]))
   elseif isa(upper_bound,Array)
-    T = @variable(model, [i=1:n_t_segs],base_name="T",lower_bound=lower_bound,
+    T = @variable(model, [i=1:n_t_segs],base_name="T",lower_bound=lower_bound[i],
       upper_bound=map(constrain_upper,upper_bound[i],i,n_t_segs),
       start=map(constraint_func,i,maximum(upper_bound),maximum(lower_bound),start_point_frac[i]))
   end
