@@ -1,10 +1,12 @@
 using Revise
-using COAST
 using LinearAlgebra
 
 
-function zonation_diffusion(Ea,D0,U238,U235,Th232,L,nrad,tT...)
-
+function zonation_diffusion(Ea,R,D0,U238,U235,Th232,L,nrad,tT...;r=nothing)
+    delr = L/(nrad-1)
+    if isnothing(r)
+        r = collect(0.0:delr:L)
+    end
     tTcopy = collect(tT)
     times = tTcopy[1:ceil(Int,length(tT)/2)] # type unstable but fastest so far
     T = tTcopy[ceil(Int,length(tT)/2)+1:end]
@@ -16,33 +18,35 @@ function zonation_diffusion(Ea,D0,U238,U235,Th232,L,nrad,tT...)
     d = zeros(nrad+1) # 0 -> rad
     dl = zeros(nrad)
     UN1 = LinearAlgebra.Tridiagonal(du,d,dl)
-    R = copy(d) # 0 -> rad
-    delR = L/(nrad-1) 
+    RHS = copy(d) # 0 -> rad
     tpassed = 0.0
-    for ind in eachindex(T)
-        Ucur = U238_0*(exp(-COAST.lambda_38*tpassed))
-        D = D0*exp(-Ea/(COAST.Rjoules*T[ind]))
+
+    for ind in eachindex(T)        
+        
+        U238cur = U238_0*(exp(-COAST.lambda_38*tpassed))
+        U235cur = U235_0*(exp(-COAST.lambda_35*tpassed))
         dt = times[ind]-times[ind+1]
-        beta = 2*delR^2/(D*dt)
-        UN1[1,1] = -1.0
+        D = D0*exp(-Ea/(COAST.Rjoules*T[ind]))    
+        UN1[1,1] = 1.0
         UN1[1,2] = 1.0
-        R[1] = 0.0
+        RHS[1] = 0.0
         for j in 2:nrad
+            beta = 2*(r[j]-r[j-1])^2/(D*dt)
             UN1[j,j+1] = 1.0
             UN1[j,j-1] = 1.0
             UN1[j,j] = -2.0-beta
-            R[j] = (2.0-beta)*C[j,ind] - C[j-1,ind] - C[j+1,ind] - Ucur*COAST.lambda_38*L*beta*dt
+            RHS[j] = (2.0-beta)*C[j,ind] - C[j-1,ind] - C[j+1,ind] - U238cur*COAST.lambda_38*L*beta*dt - U235cur*COAST.lambda_35*L*beta*dt
         end
-        
+        # beta = 2*(r[end]-r[end-1])^2/(D*dt)
+        # UN1[nrad+1,nrad+1] = -2.0-beta
         UN1[nrad+1,nrad+1] = 1.0
-        
-        R[nrad+1] = 0.0
-        S = UN1\R
+        RHS[nrad+1] = C[end,ind]#(2.0-beta)*C[end,ind] - C[end-1,ind] - U238cur*COAST.lambda_38*L*beta*dt - U235cur*COAST.lambda_35*L*beta*dt
+        S = UN1\RHS
         C[:,ind+1] = S
         tpassed += dt
     end
     outval = U238./(C./L)
-    return outval[1:end-1,end-1]
+    return (outval[1:end-1,end-1],r)
 end
 
 function misfit_zonation_diffusion(Ea,D0,U238,U235,Th232,L,nrad,pbtT...)
@@ -55,14 +59,9 @@ function misfit_zonation_diffusion(Ea,D0,U238,U235,Th232,L,nrad,pbtT...)
 end
 
 
-Ea = 250.0*1e3
-D0 = 3.9*1e-10
-nt = 10
-t= collect(LinRange(1000.0e6*COAST.sec_in_yrs,0.1e6*COAST.sec_in_yrs,nt))
-T= collect(LinRange(1000.0,700.0,nt-1))
 
-tT = vcat(t,T)
-L = 1e-4
-diffn = zonation_diffusion(Ea,D0,40.0,0.0,0.0,L,30,tT...)
+# tT = vcat(t,T)
+# L = 1e-4
+# diffn = zonation_diffusion(Ea,D0,40.0,0.0,0.0,L,30,tT...)
 
 
