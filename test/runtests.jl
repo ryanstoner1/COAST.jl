@@ -40,11 +40,11 @@ end
     T = collect(LinRange(120.0,0.01,ceil(Int,n_T_pts)).+273.15)
     times = collect(LinRange(120.0,0.01,ceil(Int,n_T_pts)+1).*3.1558e7*1e6)
     mass_he_t1 = rdaam_forward_diffusion(alpha,c0,c1,c2,c3,rmr0,eta_q,L_dist,0.0,0.0,0.0,R,Ea,logD0_a2,n_iter,
-                  U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,L,times...,T...)
-    print("mass t1 is: $mass_he_t1 \n")
+                  U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,L1,times...,T...)
+    print("mass t1 Farley, 00 is: $mass_he_t1 \n")
     pre_he_t1 = (8*(U238_mol*exp(60*1e6*sec_in_yrs/τ38)-U238_mol)+
                  7*(U235_mol*exp(60*1e6*sec_in_yrs/τ35)-U235_mol)) # Dodson value
-    print("mass t1 predicted is: $pre_he_t1 \n")
+    print("mass t1 Farley, 00 predicted is: $pre_he_t1 \n")
     @test isapprox(mass_he_t1/pre_he_t1,1.0; rtol = 1e-2)
 
     """
@@ -59,7 +59,6 @@ end
     E_L = 122.3*1e3 # J/mol
     L2 = 60*1e-4
     log10D0L_a2_rdaam = log10(exp(9.733)*L^2/L2^2)
-
     T = collect(LinRange(120.0,0.0,ceil(Int,n_T_pts)).+273.15)
     times = collect(LinRange(120.0,0.01,ceil(Int,n_T_pts)+1).*3.1558e7*1e6)
     mass_he_t2 = rdaam_forward_diffusion(alpha,c0,c1,c2,c3,0.79,eta_q,L_dist,psi,omega,Etrap,Rjoules,E_L,log10D0L_a2_rdaam,n_iter,
@@ -70,8 +69,11 @@ end
     @test isapprox(mass_he_t2/pre_he_t2,1.0; rtol = 1e-2)
 
     """
-    wolf,98 fig. 5 - p3
+    wolf,98 fig. 5 - history 3
     """
+    Ea = 36.2
+    logD0_a2 = log10(10^(7.7))
+    
     T1 = collect(LinRange(60.0,60.0,ceil(Int,n_T_pts/2)).+273.15)
     T2 = collect(LinRange(15.0,15.0,floor(Int,n_T_pts/2)).+273.15)
     T = vcat(T1,T2)
@@ -82,9 +84,11 @@ end
                                          0.0,0.0,0.0,R,Ea,logD0_a2,n_iter,
                                          U238_mol,U238_V,U235_mol,U235_V,
                                          Th232_mol,Th232_V,L,times...,T...)
-    pre_he_t3 = (8*(U238_mol*exp(40*1e6*sec_in_yrs/τ38)-U238_mol)+
-                 7*(U235_mol*exp(40*1e6*sec_in_yrs/τ35)-U235_mol))
-    @test isapprox(mass_he_t3/pre_he_t3,1.0; atol = 2e-2) # <1 Ma error
+    pre_he_t3 = (8*(U238_mol*exp(41.4*1e6*sec_in_yrs/τ38)-U238_mol)+ # HeFTy output
+                 7*(U235_mol*exp(41.4*1e6*sec_in_yrs/τ35)-U235_mol)) # HeFTy output
+    print("Wolf test measured is $(mass_he_t3)! \n")
+    print("Wolf test predicted is $(pre_he_t3)! \n")
+    @test isapprox(mass_he_t3/pre_he_t3,1.0; atol = 1e-2) # <1 Ma error vs
 end
 
 @testset "he_vars_constraints.jl" begin
@@ -257,20 +261,18 @@ end
    @test isapprox(l0cm_cust,(1.65*1.0+2.0),rtol=1e-3)
 end
 
-@testset "FT_forward.jl" begin
+# @testset "FT_forward.jl" begin
+#     """
+#     RDAAM type cooling
+#     """
+#     T = collect(LinRange(120.0,0.01,ceil(Int,n_T_pts)).+273.15)
+#     times = collect(LinRange(120.0,0.01,ceil(Int,n_T_pts)+1).*3.1558e7*1e6)
+#     alpha = 0.04672
+#     beta = 0.0
+#     c0 = 0.39528
+#     c1 = 0.01073
+#     c2 = -65.12969
+#     c3 =  -7.91715
 
-    """
-    RDAAM type cooling
-    """
-    T = collect(LinRange(120.0,0.01,ceil(Int,n_T_pts)).+273.15)
-    times = collect(LinRange(120.0,0.01,ceil(Int,n_T_pts)+1).*3.1558e7*1e6)
-
-    alpha = 0.04672
-    beta = 0.0
-    c0 = 0.39528
-    c1 = 0.01073
-    c2 = -65.12969
-    c3 =  -7.91715
-
-    rcb2_test = FT_forward(alpha,beta,c0,c1,c2,c3,T,times)
-end
+#     rcb2_test = FT_forward(alpha,beta,c0,c1,c2,c3,T,times)
+# end
