@@ -23,6 +23,12 @@ include("he_func_registration.jl")
 include("FT_setup.jl")
 include("FT_forward.jl")
 include("zonation.jl")
+include("zonation_forward.jl")
+include("app.jl")
+
+# 
+using .App
+
 # funcs for unit testing
 export loaded_COAST
 
@@ -43,7 +49,7 @@ export init_track_len
 export FT_forward
 
 # zonation Crank-Nicolson
-export zonation_diffusion
+export zonation_diffusion, zonation, register_forward_model_zonation!
 
 # constants
 export sec_in_yrs,τ38,τ35,τ32
