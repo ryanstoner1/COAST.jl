@@ -21,7 +21,7 @@ L = 1e-4
 Nx = 513
 U238 = 1.0
 # Nt,t_end
-function zonation(Ea,R,D0,U238,U235,Th232,L,Nx,tT...;r = nothing)
+function zonation_forward(Ea,R,D0,U238,U235,Th232,L,Nx,tT...;r = nothing)
 
 tTcopy = collect(tT)
 t = tTcopy[1:ceil(Int,length(tT)/2)] # type unstable but fastest so far
@@ -29,9 +29,13 @@ T = tTcopy[ceil(Int,length(tT)/2)+1:end]
 U238_0 = U238*(exp(COAST.lambda_38*t[1])) # U238 is measured at present
 U235_0 = U235*(exp(COAST.lambda_35*t[1])) # U238 is measured at present
 Th232_0 = Th232*(exp(COAST.lambda_32*t[1])) # U238 is measured at present
-
-dr = L/(Nx-1)
-r = LinRange(0.0,L,Nx)
+Nt = length(t)
+if isnothing(r)
+    dr = L/(Nx-1)
+    r = LinRange(0.0,L,Nx)
+else 
+    dr = r[2] - r[1]
+end
 D_diffn = [0.0]
 
 Pb = 0.0*ones(Nx)
