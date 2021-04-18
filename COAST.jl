@@ -49,7 +49,7 @@ export init_track_len
 export FT_forward
 
 # zonation Crank-Nicolson
-export zonation_diffusion, zonation, register_forward_model_zonation!
+export zonation_diffusion, zonation_forward, register_forward_model_zonation!
 
 # constants
 export sec_in_yrs,τ38,τ35,τ32
