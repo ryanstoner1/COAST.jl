@@ -85,5 +85,4 @@ def tab_updates_url(value):
     return value
 
 if __name__ == '__main__':
-    app.run_server( port=8050,
-        host='0.0.0.0' ,debug=False)
+    app.run_server( port=8050,debug=False)
