@@ -1,7 +1,4 @@
 using Revise
-using Pkg
-Pkg.activate(pwd())
-using COAST
 using LinearAlgebra
 
 Nt = 301
