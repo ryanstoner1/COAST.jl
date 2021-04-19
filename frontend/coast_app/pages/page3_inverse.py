@@ -178,7 +178,7 @@ def on_button_click(n,rows1,columns1,Ea,D0):
             "Ea":str(Ea),"D0":str(D0),"U38Pb06":str(dates),"sigU38Pb06":str(errors),"Lmax":str(Lmax),"tmax":str(tmax),
         "tmin":str(tmin),"dr":str(dr),"distance":str(distance)}
 
-        r = requests.post("http://0.0.0.0:8000/model", json=payload)
+        r = requests.post("http://api.thermochron.org/model", json=payload)
         print(r.text)
         return "200"
 
