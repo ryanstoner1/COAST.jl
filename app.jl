@@ -1,7 +1,7 @@
 
 
 module App
-using COAST
+
 using JuMP
 using JSON3
 using Genie
