@@ -6,18 +6,23 @@ using COAST
 using CSV
 using DataFrames
 using Test
-
+using Interpolations
 @testset "COAST.jl" begin
     @test loaded_COAST()==true
 end
 
 @testset "zonation.jl" begin
-    Lmax = 77.0*1e-6
+    #=
+
+    Test with Smye, 2018 dataset
+
+    =#
     subdir = "/test"
     filename = "/smyedata.csv"
     raw_data = CSV.read(pwd()*subdir*filename,DataFrame,header=false) 
     data = Matrix(raw_data)
     data[:,1] = data[:,1]/1e6
+    Lmax = 77.0*1e-6 # maximum grain size
     r_max_approx = Lmax
     dr = diff(data[1:2,1])[1]
     r_added_min = maximum(data[:,1]) + dr
@@ -27,6 +32,49 @@ end
     sigPb06U38_grain_center = fill(data[end,3],n_added)
     data_grain_center = hcat(r_added,Pb06U38_grain_center,sigPb06U38_grain_center)
     data = vcat(data,data_grain_center)
+
+    if size(data,1)<100 # if less data points split and interpolate between
+        nrows_new_interpd = 2*size(data,1)-1
+        new_r = LinRange(minimum(data[:,1]),maximum(data[:,1]),nrows_new_interpd)
+        old_r = (data[:,1],)
+        itp_Pb06 = interpolate(old_r, data[:,2], Gridded(Linear()))
+        itp_sigPb06 = interpolate(old_r, data[:,3], Gridded(Linear()))
+        interpd_Pb06 = itp_Pb06(new_r)
+        interpd_sigPb06 = itp_sigPb06(new_r) 
+        data_new = hcat(new_r,interpd_Pb06,interpd_sigPb06)
+        data = data_new
+        
+    end
+    end_model_Ma = 800.0
+    Pb_corr_end_model = 1.0*(exp(COAST.lambda_38*COAST.sec_in_yrs*end_model_Ma*1e6))-1.0
+    data[:,2] = data[:,2].-Pb_corr_end_model
+    data = data[end:-1:1,:]
+    data = vcat(data,[0.0 0.0 0.0]) # boundary assumed to be at 0
+    r = data[:,1]
+    Nx = length(r)
+    Ea = 250.0*1e3 # J/mol => 59.75 kcal/mol
+    D0 = 3.9*1e-10 # m^2/s => 3.9e-6 cm^2/s
+    U238 = 1.0
+    nt = 200
+     
+    t1 = collect(LinRange(1100.0,1000.0,ceil(Int,nt/2)+1).*3.1558e7*1e6)
+    t2 = collect(LinRange(1000.0,end_model_Ma,floor(Int,nt/2)).*3.1558e7*1e6)
+    t = vcat(t1,t2)    
+    T1 = collect(LinRange(800.0,500.0,ceil(Int,nt/2)).+273.15)
+    T2 = collect(LinRange(500.0,400.0,floor(Int,nt/2)).+273.15)
+    T = vcat(T1,T2)
+    
+    Pb06forw_smye = zonation_forward(Ea,COAST.Rjoules,D0,U238,0.0,0.0,Lmax,Nx,t...,T...,r=r)
+    print("Smye test is: $(data[:,2]) \n \n")
+    print("Smye test is: $(Pb06forw_smye) \n")
+    print("Smye test is: $(data[:,2]-Pb06forw_smye) \n \n")
+    #=
+
+
+    Initial diffusion script
+
+    =#
+
     Ea = 250.0*1e3 # J/mol => 59.75 kcal/mol
     D0 = 3.9*1e-10 # m^2/s => 3.9e-6 cm^2/s
     nt = 1000
@@ -41,7 +89,6 @@ end
     T1 = collect(LinRange(900.0,600.0,ceil(Int,nt/2)).+273.15)
     T2 = collect(LinRange(600.0,400.0,floor(Int,nt/2)).+273.15)
     T = vcat(T1,T2)
-    #T = collect(LinRange(900.0,600.0,nt-1))
     (U38Pb06forw,r) = zonation_diffusion(Ea,COAST.Rjoules,D0,U38,0.0,0.0,L,nrad,t...,T...)
     @time zonation_diffusion(Ea,COAST.Rjoules,D0,U38,0.0,0.0,L,nrad,t...,T...);
     Pb06forw = 1.0./U38Pb06forw
@@ -112,10 +159,10 @@ end
     D0 = 3.9*1e-10
     #Rjoules = 8.314
     L = 1e-4
-    Nx = 513
+    Nx = 100
     U238 = 1.0
     # Nt,t_end    
-    Pb06forw = zonation(Ea,COAST.Rjoules,D0,U238,0.0,0.0,L,Nx,t...,T...)
+    Pb06forw = zonation_forward(Ea,COAST.Rjoules,D0,U238,0.0,0.0,L,Nx,t...,T...)
     Pbtot = [0.0]
     r = LinRange(0.0,L,Nx)
     for i in 2:Nx
@@ -126,6 +173,11 @@ end
     Pb_heft = (1.0*(U238*exp(50.7*1e6*COAST.sec_in_yrs/COAST.τ38)-U238))
     print("HeFTy: total lead predicted is $(Pb_heft)\n")
     @test isapprox(Pbtot/Pb_heft,1.0; atol = 1e-2) # <1 Ma error vs
+
+
+
+    
+
 end
 
 
