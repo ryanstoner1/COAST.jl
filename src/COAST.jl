@@ -49,8 +49,9 @@ export init_track_len
 export FT_forward
 
 # zonation Crank-Nicolson
-export zonation_forward, register_forward_model_zonation!
-export zon_objective, create_constraint_zon, create_jacobian_constraint
+export zon_objective, create_constraint_zon, create_jacobian_constraint, grad_zon_objective # main zonation funcs
+export zonation_forward # zonation func for testing
+
 
 # constants
 export sec_in_yrs,τ38,τ35,τ32
