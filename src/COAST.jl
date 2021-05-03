@@ -21,8 +21,9 @@ include("he_vars_constraints.jl")
 include("he_func_registration.jl")
 include("FT_setup.jl")
 include("FT_forward.jl")
-include("zonation.jl")
 include("zonation_forward.jl")
+include("create_zonation_funcs.jl")
+include("zonation_objective.jl")
 include("app.jl")
 
 # 
@@ -48,7 +49,8 @@ export init_track_len
 export FT_forward
 
 # zonation Crank-Nicolson
-export zonation_diffusion, zonation_forward, register_forward_model_zonation!
+export zonation_forward, register_forward_model_zonation!
+export zon_objective, create_constraint_zon, create_jacobian_constraint
 
 # constants
 export sec_in_yrs,τ38,τ35,τ32
