@@ -1,9 +1,15 @@
 
+#= R. Stoner
+
+ tests zonation scripts; one unzoned case without rad. damage
+ run this file from COAST directory
+ when debugging make sure you start julia in COAST directory as well
+
+=#
+
 using Revise
 import Pkg
-#Pkg.activate(pwd())
-Pkg.activate("/Users/ryanstoner/.julia/dev/COAST.jl")
-cd("/Users/ryanstoner/.julia/dev/COAST.jl")
+Pkg.activate(pwd())
 using COAST
 using CSV
 using DataFrames
@@ -11,14 +17,183 @@ using Test
 using JuMP
 using Ipopt
 using Interpolations
+
+# check if COAST was loaded 
 @testset "COAST.jl" begin
     @test loaded_COAST()==true
 end
 
 #@testset "zonation.jl" begin
+    #= 
+     
+     Unzoned U-Pb rutile from Cherniak, 00
+     no radiation damage
+
+    =#
+    # TODO: remove superfluous rad. damage params
+    # A-Th/He rad. damage params; these aren't used here
+    alpha = 0.04672
+    c0 = 0.39528
+    c1 = 0.01073
+    c2 = -65.12969
+    c3 =  -7.91715
+    rmr0 = 0.79
+    eta_q = 0.91
+    L_dist = 8.1*1e-4 # cm (!)
+
+    # general params
+    U238 = 1.0*1e-6
+    R = 1.9872*1e-3
+    L = 1.0*1e-4 # m
+    n_T_pts = 1000
+    n_iter = 300.0
+    Ea = 59.752
+    logD0_a2 = log10(3.9e-10/(L^2))
+    
+    # preprocess concentrations
+    (U238_V,U235_V,Th232_V,U238_mol,U235_mol,Th232_mol) = ppm_to_atoms_per_volume(U238,0.0,density=3.20)
+    
+    # set up time-temperature (t-T) path
+    T1 = collect(LinRange(900.0,600.0,ceil(Int,n_T_pts/2)).+273.15)
+    T2 = collect(LinRange(600.0,400.0,floor(Int,n_T_pts/2)).+273.15)
+    T = vcat(T1,T2)
+    times1 = collect(LinRange(70.0,50.0,ceil(Int,n_T_pts/2)+1).*3.1558e7*1e6)
+    times2 = collect(LinRange(49.9,0.01,floor(Int,n_T_pts/2)).*3.1558e7*1e6)
+    times = vcat(times1,times2)
+
+    mass_pb_t1 = rdaam_forward_diffusion(alpha,c0,c1,c2,c3,0.83,eta_q,L_dist,
+                                         0.0,0.0,0.0,R,Ea,logD0_a2,n_iter,
+                                         U238_mol,U238_V,U235_mol,U235_V,
+                                         Th232_mol,Th232_V,L,times...,T...)
+    pre_pb_t1 = (8*(U238_mol*exp(50.7*1e6*sec_in_yrs/τ38)-U238_mol)+ # HeFTy output
+                 7*(U235_mol*exp(50.7*1e6*sec_in_yrs/τ35)-U235_mol)) 
+    # 50.8 - analytical output
+    print("Unzoned Cherniak rutile numerical test numerical is $(mass_pb_t1)! \n")
+    print("Unzoned Cherniak rutile test predicted HeFTy is $(pre_pb_t1)! \n")
+    @test isapprox(mass_pb_t1/pre_pb_t1,1.0; atol = 1e-2) # <1 Ma error
+    # end unzoned test
+
+    #= 
+
+     can test zonation function can handle array of U values?
+     U-Pb rutile (Cherniak,00)
+     
+    =#
+    # time stepping setup
+    Nt = 39 
+    t_end = 1.0
+    dt = t_end/(Nt-1)
+
+    # set up time-temperature (t-T) path
+    t1 = collect(LinRange(70.0,50.0,ceil(Int,Nt/2)).*3.1558e7*1e6)
+    t2 = collect(LinRange(49.9,0.01,floor(Int,Nt/2)).*3.1558e7*1e6)
+    t = vcat(t1,t2)
+    T1 = collect(LinRange(900.0,600.0,ceil(Int,Nt/2)).+273.15)
+    T2 = collect(LinRange(600.0,400.0,floor(Int,Nt/2)).+273.15)
+    T = vcat(T1,T2)
+    Ea = 250.0*1e3
+    D0 = 3.9*1e-10
+    L = 1e-4
+    Nx = 30
+    r = LinRange(0.0,L,Nx)
+    U238 = 1.0
+    U238_new = U238*ones(Nx)
+    Nt = length(t)
+
+    # test function uses splatting; JuMP doesn't like arrays    
+    Pb06forw = zonation_forward(Ea,COAST.Rjoules,D0,0.0,0.0,L,Nt,Nx,t...,T...,r...,U238_new...)
+    Pbtot = [0.0]
+    r = LinRange(0.0,L,Nx)
+
+    # integrate/convert profile to total Pb concentration
+    # check date w. HeFTy date
+    for i in 2:Nx
+        Pbtot[1] += pi*(r[i]^3-r[i-1]^3)*(Pb06forw[i]+Pb06forw[i-1])/2
+    end
+    Pbtot = Pbtot[1]/(pi*L^3)
+    print("FD: total lead predicted is $(Pbtot)\n")
+    Pb_heft = (1.0*(U238*exp(50.7*1e6*COAST.sec_in_yrs/COAST.τ38)-U238))
+    print("HeFTy: total lead predicted is $(Pb_heft)\n")
+    @test isapprox(Pbtot/Pb_heft,1.0; atol = 5e-2) # higher Nx and Nt lead to better match
+
+    #=
+     
+     synthetic test of constrained optimizer (IPOPT) used by COAST
+     U-Pb rutile (Cherniak,00)
+     array of U values but unzoned; cooling path
+     same as previous test
+
+    =#
+
+    # set up t-T path
+    Nt = 39
+    t_end = 1.0
+    dt = t_end/(Nt-1)
+    T1 = collect(LinRange(900.0,600.0,ceil(Int,Nt/2)).+273.15)
+    T2 = collect(LinRange(600.0,400.0,floor(Int,Nt/2)).+273.15)
+    T = vcat(T1,T2)
+    t1 = collect(LinRange(70.0,50.0,ceil(Int,Nt/2)).*3.1558e7*1e6)
+    t2 = collect(LinRange(49.9,0.01,floor(Int,Nt/2)).*3.1558e7*1e6)
+    t = vcat(t1,t2)
+
+    # Cherniak, 00 diffusion params
+    # setup U and grain size
+    Ea = 250.0*1e3
+    D0 = 3.9*1e-10
+    L = 1e-4
+    Nx = 30
+    r = LinRange(0.0,L,Nx)
+    U238 = 1.0
+    U238 = U238*ones(Nx)
+
+    # create functions to be passed to IPOPT
+    # IPOPT-friendly funcs
+    jacobian_constraint = create_jacobian_constraint(Ea,COAST.Rjoules,D0,0.0,0.0,Nt,Nx,t,r,U238)
+    constraint_zon = create_constraint_zon(Ea,COAST.Rjoules,D0,U238,0.0,0.0,Nt,Nx,t,r)
+
+    # bounds temperature
+    T_L = zeros(Float64,Nt)
+    T_U = 2900*ones(Float64,Nt) # T_U has to be defined, set bound arbitrarily high
+
+    # synthetic Pb values
+    initPb = [0.008857378583018752, 0.008856812929792447, 0.00885511177504213, 0.008852259612534526, 0.008848230516985477, 0.008842987011603362, 0.008836478776030107, 0.008828640808589248, 0.008819390873808581, 0.008808625978040217, 0.00879621748087797, 0.008782004239101911, 0.008765782846776095, 0.008747293506359331, 0.008726199226256422, 0.008702054713998092, 0.008674259257549808, 0.008641984671522813, 0.008604064447778814, 0.008558822633270739, 0.008503808762407928, 0.008435383783207719, 0.008348058711971884, 0.008233386603361441, 0.008077941780303029, 0.007859134069521883, 0.007534875513179412, 0.007010548962254766, 0.005967321901702219, 0.0]
+
+    # bounds Pb (i.e. constraint bounds)
+    Pb_L = initPb - 0.02*initPb
+    Pb_U = initPb + 0.02*initPb 
+
+    prob = createProblem(
+        Nt, # should match length T_L, T_U otherwise julia may crash
+        T_L, # lower bound on temperature
+        T_U, # upper bound
+        Nx,
+        Pb_L, # lower bound of Pb concentration; i.e. constraints 
+        Pb_U,
+        Nt*Nx, # number elements in constraint jacobian
+        Nt*Nx,
+        zon_objective, # objective function; sum smoothness (multiobjective not yet possible)
+        constraint_zon,
+        grad_zon_objective,
+        jacobian_constraint,
+    )
+    addOption(prob, "hessian_approximation", "limited-memory") # hessian rarely (if ever) called; approximation is ok
+    addOption(prob, "tol", 300.0) # smoothness not as much of an issue here
+    addOption(prob,"print_level",3)
+    prob.x = 1.1*T
+    status=solveProblem(prob) # this can crash julia if prob set up incorrectly (see above)
+    solve_successful = :Solve_Succeeded
+    @test Ipopt.ApplicationReturnStatus[status]==solve_successful
+
+    # test if previous test results match these
+    Pbs = zeros(Nx) # preallocate
+    constraint_zon(T,Pbs)
+
+    @test minimum(isapprox.(Pbs[1:end-1]./Pb06forw[1:end-1],1.0;atol=1e-10))
+    print("Test diffusion func matches main diffusion func! \n")
+
     #=
 
-    Test with Smye, 2018 dataset
+    Test with Smye, 2018 rutile dataset
 
     =#
     subdir = "/test"
@@ -69,111 +244,13 @@ end
     T = vcat(T1,T2)
     
     upper_bound_arr = 1000.0*ones(Nt)
-    #upper_bound_arr[Tbound_top.>-1.0] = Tbound_top[Tbound_top.>-1.0]
     lower_bound_arr = 273.0*ones(Nt)
-    #lower_bound_arr[Tbound_bot.>-1.0] = Tbound_bot[Tbound_bot.>-1.0]
-    model = Model(Ipopt.Optimizer)
-    JuMP.set_optimizer_attributes(model,"print_level"=>2,"tol"=>1e2,"linear_solver"=>"mumps","print_timing_statistics"=>"no")
-    register_objective_function!(Nt,model)
-    n_constraints = length(data[:,2])
-
-    @NLparameter(model, pa[i=1:n_constraints] == data[(end-i+1),2])
-    start_points = 0.5.*ones(Float64,Nt)
-    Ttest = copy(T)
-    (T,set_dev) = define_variables!(Nt,n_constraints,model,start_points,upper_bound=upper_bound_arr,lower_bound=lower_bound_arr)
-    register_forward_model_zonation!(Nt,Nx,model)
-
-
-    # @time Pb06forw_smye = zonation_forward(Ea,COAST.Rjoules,D0,0.0,0.0,Lmax,Nt,Nx,t...,Ttest...,r...,U238_new...)
-    # print("Smye test is: $(data[:,2]) \n \n")
-    # print("Smye test is: $(Pb06forw_smye) \n")
-    # print("Smye test is: $(reverse(data[:,2])-Pb06forw_smye) \n \n")
-
-    #@NLconstraint(model,[i = 1:1],(zonation_forward(Ea,COAST.Rjoules,D0,U238,0.0,0.0,Lmax,Nt,Nx,t...,T...,r...))^2<=0.0)
-
-    # #=
-
-    ## input
-    # rdaam params
-    # eqs, fanning curvilinear, ketcham et al 07
-    alpha = 0.04672
-    c0 = 0.39528
-    c1 = 0.01073
-    c2 = -65.12969
-    c3 =  -7.91715
-    rmr0 = 0.79
-    eta_q = 0.91
-    L_dist = 8.1*1e-4 # cm (!)
-    # general params
-    U238 = 1.0*1e-6
-    R = 1.9872*1e-3
-    L = 1.0*1e-4 # m
-    n_T_pts = 1000
-    n_iter = 300.0
-    Ea = 59.752
-    logD0_a2 = log10(3.9e-10/(L^2))
     
-    # preprocess concentrations
-    (U238_V,U235_V,Th232_V,U238_mol,U235_mol,Th232_mol) = ppm_to_atoms_per_volume(U238,0.0,density=3.20)
     
-    T1 = collect(LinRange(900.0,600.0,ceil(Int,n_T_pts/2)).+273.15)
-    T2 = collect(LinRange(600.0,400.0,floor(Int,n_T_pts/2)).+273.15)
-    #print("$(U235_mol) \n")
-    T = vcat(T1,T2)
-    times1 = collect(LinRange(70.0,50.0,ceil(Int,n_T_pts/2)+1).*3.1558e7*1e6)
-    times2 = collect(LinRange(49.9,0.01,floor(Int,n_T_pts/2)).*3.1558e7*1e6)
-    times = vcat(times1,times2)
-    # mass_he_t3 = rdaam_forward_diffusion(alpha,c0,c1,c2,c3,0.83,eta_q,L_dist,
-    #                                      0.0,0.0,0.0,R,Ea,logD0_a2,n_iter,
-    #                                      U238_mol,U238_V,U235_mol,U235_V,
-    #                                      Th232_mol,Th232_V,L,times...,T...)
-    # pre_he_t3 = (8*(U238_mol*exp(50.7*1e6*sec_in_yrs/τ38)-U238_mol)+ # HeFTy output
-    #              7*(U235_mol*exp(50.7*1e6*sec_in_yrs/τ35)-U235_mol)) # HeFTy output
-    # # 50.8 - usual output
-    # print("Cherniak rutile test numerical is $(mass_he_t3)! \n")
-    # print("Cherniak rutile test predicted HeFTy is $(pre_he_t3)! \n")
-    # @test isapprox(mass_he_t3/pre_he_t3,1.0; atol = 1e-2) # <1 Ma error vs
-
-    # Zonation testing
-    Nt = 100
-    t_end = 1.0
-    dt = t_end/(Nt-1)
-    t1 = collect(LinRange(70.0,50.0,ceil(Int,Nt/2)).*3.1558e7*1e6)
-    t2 = collect(LinRange(49.9,0.01,floor(Int,Nt/2)).*3.1558e7*1e6)
-    t = vcat(t1,t2)
     
-    T1 = collect(LinRange(900.0,600.0,ceil(Int,Nt/2)).+273.15)
-    T2 = collect(LinRange(600.0,400.0,floor(Int,Nt/2)).+273.15)
-    T = vcat(T1,T2)
-    Ea = 250.0*1e3
-    D0 = 3.9*1e-10
-    #Rjoules = 8.314
-    L = 1e-4
-    Nx = 30
-    r = LinRange(0.0,L,Nx)
-    U238 = 1.0
-    U238_new = U238*ones(Nx)
-    Nt = length(t)
-    # Nt,t_end    
-    Pb06forw = zonation_forward(Ea,COAST.Rjoules,D0,0.0,0.0,L,Nt,Nx,t...,T...,r...,U238_new...)
-    Pbtot = [0.0]
-    r = LinRange(0.0,L,Nx)
-    for i in 2:Nx
-        Pbtot[1] += pi*(r[i]^3-r[i-1]^3)*(Pb06forw[i]+Pb06forw[i-1])/2
-    end
-    Pbtot = Pbtot[1]/(pi*L^3)
-    print("FD: total lead predicted is $(Pbtot)\n")
-    Pb_heft = (1.0*(U238*exp(50.7*1e6*COAST.sec_in_yrs/COAST.τ38)-U238))
-    print("HeFTy: total lead predicted is $(Pb_heft)\n")
-    @test isapprox(Pbtot/Pb_heft,1.0; atol = 4e-2) # <1 Ma error vs
 
 
 
     
 
 #end
-
-
-
-
-# 
