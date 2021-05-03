@@ -74,14 +74,6 @@ end
 return Pb_solns[:,end]
 end
 
-function register_forward_model_zonation!(n_t_segs,n_x_segs,model;
-    diffusion_func=zonation_forward)
-  n_T_segs = n_t_segs
-  forward_model = Symbol(diffusion_func)
-  register(model,forward_model,9+n_T_segs+n_t_segs+n_x_segs,diffusion_func,autodiff=true)
-  return true
-end
-
 # Pbtot = [0.0]
 # r = LinRange(0.0,L,Nx)
 # U238 = U238*ones(Nx)
