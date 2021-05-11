@@ -1,6 +1,7 @@
 from app import app
 import json
 import dash_table
+import requests
 import pandas as pd
 import numpy as np
 from collections import OrderedDict
@@ -45,9 +46,18 @@ page_3_layout = html.Div([
                 html.Span("n",style = {'display': 'inline-block','margin-left':'10px'}), 
                 html.Sub('samples'),
                 dcc.Input(placeholder="number", id="n-samp", min=0, max=1e8,style = {'display': 'block','margin-left':'10px','width': '5em'}),
-                html.Span('\u0394',style = {'display': 'inline-block','margin-left':'10px'}),
-                html.Sub('r'),
-                dcc.Input(placeholder="time", id="time", min=0, max=1e8,style = {'display': 'block','margin-left':'10px','width': '5em'}),
+                html.Span('n',style = {'display': 'inline-block','margin-left':'10px'}),
+                html.Sub('tsteps'),
+                dcc.Input(placeholder="count", id="nt", min=0, max=1e4,style = {'display': 'block','margin-left':'10px','width': '5em'}),
+                html.Span('time',style = {'display': 'inline-block','margin-left':'10px'}),
+                html.Sub('beg'),
+                dcc.Input(placeholder="(Ma)", id="t-beg", min=0, max=1e4,style = {'display': 'block','margin-left':'10px','width': '5em'}),
+                html.Span('time',style = {'display': 'inline-block','margin-left':'10px'}),
+                html.Sub('end'),
+                dcc.Input(placeholder="(Ma)", id="t-end", min=0, max=1e4,style = {'display': 'block','margin-left':'10px','width': '5em'}),
+                html.Span('r',style = {'display': 'inline-block','margin-left':'10px'}),
+                html.Sub('grain'),
+                dcc.Input(placeholder="(um)", id="radius", min=0, max=1e8,style = {'display': 'block','margin-left':'10px','width': '5em'}),
             ],style = {'display': 'block'}),
             dbc.FormText("Type the activation energy in the box above"),
         ]
@@ -57,6 +67,9 @@ page_3_layout = html.Div([
     html.Br(),
     dbc.Button("Process PCE", id="pce-button", className="mr-1"),
     html.Span(id="pce-output", style={"vertical-align": "middle"}),
+    html.Br(),
+    dbc.Button("Process zonation", id="zonation-button", className="mr-3"),
+    html.Span(id="zon-output", style={"vertical-align": "middle"}),
     html.H2("GB119C-10"),
     dash_table.DataTable(
         id='t1',
@@ -87,11 +100,11 @@ page_3_layout = html.Div([
             'type': 'numeric'
         },{
             'id': 'date',
-            'name': '06/38',
+            'name': 'date',
             'type': 'numeric'
         }, {
             'id': 'error',
-            'name': '2 sigma (abs)',
+            'name': 'error',
             'type': 'numeric'
         }],
         editable=True
@@ -192,3 +205,40 @@ def display_output(rows, columns):
     df = pd.DataFrame(rows, columns=[c['name'] for c in columns])
     result = json.dumps(df["date"].tolist())
     return result
+
+# gets called each time button is clicked
+@app.callback(
+    Output('zon-output', 'children'),
+    [Input("zonation-button", "n_clicks")],
+    state=[State('t1', 'data'),
+    State('t1', 'columns'),
+    State('t2', 'data'),
+    State('t2', 'columns'),
+    State('Ea-in', 'value'),
+    State('D0-in', 'value'),
+    State('nt','value'),
+    State('t-beg', 'value'),
+    State('t-end', 'value'),
+    State('radius','value')])
+def display_output(n,rows1, columns1, rows2, columns2,Ea,D0,nt,t_beg,t_end,radius):
+    if rows1 is None:
+        raise PreventUpdate
+    
+    if n is None:
+        return "not called yet!"
+    else:
+        df1 = pd.DataFrame(rows1, columns=[c['name'] for c in columns1])
+        df2 = pd.DataFrame(rows2, columns=[c['name'] for c in columns2])
+        np_df1 = df1.to_numpy()
+        list_df1 = np_df1.tolist()
+        np_df2 = df2.to_numpy()
+        list_df2 = np_df2.tolist()
+        list_dfs = [list_df1, list_df2]
+        Ea = float(Ea)
+        result = json.dumps(df1["date"].tolist() + df2["date"].tolist())
+        payload = {"Ea":Ea,"D0":D0,"id":23,"function_to_run":"zonation",
+            "data":list_dfs,"t_end":t_end,"t_beg":t_beg,"radius":radius,"Nt":nt}
+        r = requests.post("http://0.0.0.0:8000/model", json=payload)
+        print(r.text)
+
+        return result
