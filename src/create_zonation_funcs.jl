@@ -1,3 +1,9 @@
+const sec_in_yrs = 3.1558e7
+const lambda_f = 8.46e-17/sec_in_yrs
+const lambda_38 = 1.55125 * 1e-10/sec_in_yrs
+const lambda_35 = 9.8584*1e-10/sec_in_yrs
+const lambda_32 = 4.9475*1e-11/sec_in_yrs
+
 function create_constraint_zon(Ea,R,D0,U238,U235,Th232,Nt,Nx,t,r)
     function constraint_zon(T,Pb)
         lhs_lo = zeros(Nx)
@@ -46,8 +52,8 @@ function create_constraint_zon(Ea,R,D0,U238,U235,Th232,Nt,Nx,t,r)
     return constraint_zon
 end
 
-function create_jacobian_constraint(Ea,R,D0,U235,Th232,Nt,Nx,t,r,U238)
-    function jacobian_constraint(T,mode, rows, cols, dPb_dT)
+function create_jac_constraint(Ea,R,D0,U235,Th232,Nt,Nx,t,r,U238)
+    function jac_constraint(T,mode, rows, cols, dPb_dT)
         if mode == :Structure
             rows[:] = repeat(1:Nx,inner=Nt)
             cols[:] = repeat(1:Nt,outer=Nx)
@@ -170,10 +176,10 @@ function create_jacobian_constraint(Ea,R,D0,U235,Th232,Nt,Nx,t,r,U238)
         end # end if structure
 
         return
-    end # end jacobian_constraint
+    end # end jac_constraint
 
-    return jacobian_constraint
-end # end create_jacobian constraint 
+    return jac_constraint
+end # end create_jac constraint 
 
 function ind_dPb(x_ind,t_ind,Nt)
     return t_ind + Nt*(x_ind - 1)
@@ -181,4 +187,80 @@ end
 
 function ind_dPb_vec(x_ind,t_ind,Nt,i)
     return (t_ind) + Nt*(x_ind - 1)*ones(Int64,i-1)
+end
+
+function create_constraint_monotonic_cooling(Nt,t; scaling=(1.0))
+    function constraint_monotonic_cooling(T,grad)
+
+        for i in 1:(Nt-1)
+            grad[1] += minimum([scaling*(T[i+1]-T[i])/(-t[i]+t[i+1]),0.0])
+        end
+        return
+    end
+    return constraint_monotonic_cooling
+end
+
+function create_jac_constraint_monotonic_cooling(Nt,t;scaling=(1.0))
+    function jac_constraint_monotonic_cooling(T,mode,rows,cols,jac_grad)
+        if mode == :Structure
+            rows[:] = ones(Nt)
+            cols[:] = collect(1:Nt)
+            #rows[:] = repeat(1:(Nt-1),inner=2)
+            #cols[:] = repeat(1:2,outer=(Nt-1))
+        else
+            
+        
+            for i in 1:(Nt-1)
+                # 2*T[i]-2*T[i+1]
+                # 2*T[i+1]-2*T[i]
+
+                if T[i+1]<T[i]
+                    jac_grad[i] += 0.0
+                else
+                    jac_grad[i] += ((-1.0)*scaling)/(-t[i]+t[i+1])
+                    jac_grad[i+1] +=  ((1.0)*scaling)/(-t[i]+t[i+1])
+                end
+                # jac_grad[2*i-1] = ((-1.0)*scaling)/(-t[i]+t[i+1])
+                # jac_grad[2*i] = ((1.0)*scaling)/(-t[i]+t[i+1])
+            end
+        end
+        return
+    end
+
+    return jac_constraint_monotonic_cooling
+end
+
+function decrease_constraint(T,grad)
+    n_constr = length(T)-1
+    ind_start = 1
+
+    for i in 1:n_constr
+        grad[i] = T[ind_start+i-1]-T[ind_start+i]
+
+    end
+    return 
+end
+
+function jac_decrease_constraint(T,mode,rows,cols,jac_grad)
+    Nt = length(T)
+    n_constr = length(T)-1
+    if mode == :Structure
+    
+        rows[:] = repeat(1:n_constr,inner=Nt)
+        cols[:] = repeat(1:Nt,outer=(n_constr))
+        #rows[:] = repeat(1:(Nt-1),inner=2)
+        #cols[:] = repeat(1:2,outer=(Nt-1))
+    else
+        jac_grad[:] = zeros(length(rows))
+        
+        n_beg = 1
+        for i in 1:n_constr
+            indL1 = ind_dPb(i,n_beg+i-1,Nt)
+            indR1 = ind_dPb(i,n_beg+i,Nt)
+            jac_grad[indL1] = 1.0
+            jac_grad[indR1] = -1.0
+        end
+    end
+
+    return
 end
