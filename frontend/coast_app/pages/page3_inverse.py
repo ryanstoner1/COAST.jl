@@ -238,7 +238,7 @@ def display_output(n,rows1, columns1, rows2, columns2,Ea,D0,nt,t_beg,t_end,radiu
         result = json.dumps(df1["date"].tolist() + df2["date"].tolist())
         payload = {"Ea":Ea,"D0":D0,"id":23,"function_to_run":"zonation",
             "data":list_dfs,"t_end":t_end,"t_beg":t_beg,"radius":radius,"Nt":nt}
-        r = requests.post("http://0.0.0.0:8000/model", json=payload)
+        r = requests.post("http://api.thermochron.org/model", json=payload)
         print(r.text)
 
         return result
