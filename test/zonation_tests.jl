@@ -11,19 +11,20 @@ using Revise
 import Pkg
 Pkg.activate(pwd())
 using COAST
+using COAST.Zoned
 using CSV
 using DataFrames
 using Test
 using JuMP
 using Ipopt
 using Interpolations
-
+using Plots
 # check if COAST was loaded 
 @testset "COAST.jl" begin
     @test loaded_COAST()==true
 end
 
-#@testset "zonation.jl" begin
+@testset "zonation.jl" begin
     #= 
      
      Unzoned U-Pb rutile from Cherniak, 00
@@ -148,7 +149,7 @@ end
 
     # create functions to be passed to IPOPT
     # IPOPT-friendly funcs
-    jacobian_constraint = create_jacobian_constraint(Ea,COAST.Rjoules,D0,0.0,0.0,Nt,Nx,t,r,U238)
+    jac_constraint = create_jac_constraint(Ea,COAST.Rjoules,D0,0.0,0.0,Nt,Nx,t,r,U238)
     constraint_zon = create_constraint_zon(Ea,COAST.Rjoules,D0,U238,0.0,0.0,Nt,Nx,t,r)
 
     # bounds temperature
@@ -171,10 +172,10 @@ end
         Pb_U,
         Nt*Nx, # number elements in constraint jacobian
         Nt*Nx,
-        zon_objective, # objective function; sum smoothness (multiobjective not yet possible)
+        smooth_zon_objective, # objective function; sum smoothness (multiobjective not yet possible)
         constraint_zon,
-        grad_zon_objective,
-        jacobian_constraint,
+        grad_smooth_zon_objective,
+        jac_constraint,
     )
     addOption(prob, "hessian_approximation", "limited-memory") # hessian rarely (if ever) called; approximation is ok
     addOption(prob, "tol", 300.0) # smoothness not as much of an issue here
@@ -196,61 +197,169 @@ end
     Test with Smye, 2018 rutile dataset
 
     =#
+    # Cherniak, 00 diffusion params
+    # setup U and grain size
+
+    # define constant params
+    Ea = 250.0*1e3 # J/mol => 59.75 kcal/mol
+    D0 = 3.9*1e-10 # m^2/s => 3.9e-6 cm^2/s
+    U238 = 1.0
+    Nt = 50
+
+    # load data and preprocess
+    ngrains = 1
     subdir = "/test"
     filename = "/smyedata.csv"
     raw_data = CSV.read(pwd()*subdir*filename,DataFrame,header=false) 
     data = Matrix(raw_data)
-    data[:,1] = data[:,1]/1e6
-    Lmax = 77.0*1e-6 # maximum grain size
-    r_max_approx = Lmax
-    dr = diff(data[1:2,1])[1]
-    r_added_min = maximum(data[:,1]) + dr
-    r_added = collect(r_added_min:dr:(r_max_approx+dr)) # round up
-    n_added = length(r_added)
-    Pb06U38_grain_center = fill(data[end,2],n_added)
-    sigPb06U38_grain_center = fill(data[end,3],n_added)
-    data_grain_center = hcat(r_added,Pb06U38_grain_center,sigPb06U38_grain_center)
-    data = vcat(data,data_grain_center)
-
-    if size(data,1)<100 # if less data points split and interpolate between
-        nrows_new_interpd = 2*size(data,1)-1
-        new_r = LinRange(minimum(data[:,1]),maximum(data[:,1]),nrows_new_interpd)
-        old_r = (data[:,1],)
-        itp_Pb06 = interpolate(old_r, data[:,2], Gridded(Linear()))
-        itp_sigPb06 = interpolate(old_r, data[:,3], Gridded(Linear()))
-        interpd_Pb06 = itp_Pb06(new_r)
-        interpd_sigPb06 = itp_sigPb06(new_r) 
-        data_new = hcat(new_r,interpd_Pb06,interpd_sigPb06)
-        data = data_new
-        
+    ngrains = size(data,2)÷3
+    # separate data by grain
+    data = [data[:,3*igrain-2:(3*igrain)] for igrain in 1:ngrains]
+    data = Dict((1:ngrains).=>data)
+    #data[1] = data[1][1:11,:] # smye cut out data deeper in grain (plateau?)
+    # convert from um->m
+    for val in values(data)    
+        val[:,1]/=1e6
     end
+
+    # fill in data to center of grain
+    rad = 73.0*1e-6 # maximum grain size
+    Nx = zeros(Int64,ngrains) # preallocate for number of nodes in grain
+    for (key, value) in data      
+        dr = diff(value[1:2,1])[1]
+        r_added_min = maximum(value[:,1])
+        r_added = collect(r_added_min:dr:(rad+dr))
+        n_added = length(r_added)
+        # fill in all other values as well
+        Pb06U38_grain_center=fill(value[end,2],n_added)
+        sigPb06U38_grain_center=fill(value[end,3],n_added)
+        data_grain_center = hcat(r_added,Pb06U38_grain_center,sigPb06U38_grain_center)
+        data[key] = vcat(value,data_grain_center)
+        data[key] = vcat([0.0 0.0 0.0],data[key])
+        Nx[key] = size(data[key],1) 
+    end
+
+    # correct model to model end date
     end_model_Ma = 800.0
     Pb_corr_end_model = 1.0*(exp(COAST.lambda_38*COAST.sec_in_yrs*end_model_Ma*1e6))-1.0
-    data[:,2] = data[:,2].-Pb_corr_end_model
-    data = vcat([0.0 0.0 0.0],data) # boundary assumed to be at 0
-    r = data[:,1]
-    Nx = length(r)
-    Ea = 250.0*1e3 # J/mol => 59.75 kcal/mol
-    D0 = 3.9*1e-10 # m^2/s => 3.9e-6 cm^2/s
-    U238 = 1.0
-    U238_new = U238*ones(Nx)
-    Nt = 200
+    
+    # pull out individual components from data for clarity
+    U238_new = Dict{Int64,Vector{Float64}}()
+    r = Dict{Int64,Vector{Float64}}()
+    Pbmeas = Dict{Int64,Vector{Float64}}()
+    sigmeas = Dict{Int64,Vector{Float64}}()
+    for (key,value) in data
+        value[2:end,2] = value[2:end,2].-Pb_corr_end_model
+        push!(r,key=>value[:,1])
+        push!(U238_new,key=>U238*ones(length(value[:,1]))) 
+        push!(Pbmeas,key=>reverse(value[:,2]))
+        push!(sigmeas,key=>reverse(value[:,3])) 
+    end
+
+
      
     t1 = collect(LinRange(1100.0,1000.0,ceil(Int,Nt/2)).*3.1558e7*1e6)
-    t2 = collect(LinRange(1000.0,end_model_Ma,floor(Int,Nt/2)).*3.1558e7*1e6)
+    dt = -maximum(diff(t1))/(3.1558e7*1e6)
+    t2 = collect(LinRange(1000.0-dt,end_model_Ma,floor(Int,Nt/2)).*3.1558e7*1e6)
     t = vcat(t1,t2)    
-    T1 = collect(LinRange(800.0,500.0,ceil(Int,Nt/2)).+273.15)
-    T2 = collect(LinRange(500.0,400.0,floor(Int,Nt/2)).+273.15)
+    T1 = collect(LinRange(830.0,870.0,ceil(Int,Nt/2)).+273.15)
+    T2 = collect(LinRange(870.0,400.0,floor(Int,Nt/2)).+273.15)
     T = vcat(T1,T2)
     
-    upper_bound_arr = 1000.0*ones(Nt)
-    lower_bound_arr = 273.0*ones(Nt)
+    upper_bound_arr = 1100.0*ones(Nt)    
+    lower_bound_arr = 673.0*ones(Nt)
+    lower_bound_arr[1] = 1100.0
+#     lower_bound_arr[1]=1100.0
+#     upper_bound_constr = reverse(data[:,2]+3*data[:,3])
+#     lower_bound_constr = reverse(data[:,2]-3*data[:,3])
+#     reassign_ind = 10
+#     upper_bound_constr[end-reassign_ind+1:end] = reverse(data[1:reassign_ind,2]+2.0*data[1:reassign_ind,3])
+#     lower_bound_constr[end-reassign_ind+1:end] = reverse(data[1:reassign_ind,2]-2.0*data[1:reassign_ind,3])
+#     lower_bound_constr[lower_bound_constr.<0.0] .= 0.0
+
+#     datasig=vcat(2*data[1:reassign_ind,3],3*data[reassign_ind+1:end,3])
+
+#     # create functions to be passed to IPOPT
+#     # IPOPT-friendly funcs
+#     jac_constraint = Zoned.create_jac_constraint(Ea,COAST.Rjoules,D0,0.0,0.0,Nt,Nx,t,r,U238_new)
+#     constraint_zon = Zoned.create_constraint_zon(Ea,COAST.Rjoules,D0,U238_new,0.0,0.0,Nt,Nx,t,r)
+
     
-    
-    
+#     # better for underconstrained setups!
+#     prob_smye = createProblem(
+#         Nt, # should match length T_L, T_U otherwise julia may crash
+#         lower_bound_arr, # lower bound on temperature
+#         upper_bound_arr, # upper bound
+#         Nx,
+#         lower_bound_constr, # lower bound of Pb concentration; i.e. constraints 
+#         upper_bound_constr,
+#         Nt*Nx, # number elements in constraint jacobian
+#         Nt*Nx,
+#         Zoned.smooth_zon_objective, # objective function; sum smoothness (multiobjective not yet possible)
+#         constraint_zon,
+#         Zoned.grad_smooth_zon_objective,
+#         jac_constraint,
+#     )
+
+#     addOption(prob_smye, "hessian_approximation", "limited-memory") # hessian rarely (if ever) called; approximation is ok
+#     addOption(prob_smye, "tol", 1.0) # smoothness not as much of an issue here
+#     addOption(prob_smye,"print_level",5)
+#     prob_smye.x = copy(T)
 
 
+#     status=solveProblem(prob_smye)    
 
-    
+#     # Value 2
+#     # create functions to be passed to IPOPT
+#     # IPOPT-friendly funcs
+#     U238_new = reshape(U238_new,:,1)
+#     Pbmeas = reshape(reverse(data[:,2]),:,1)
+#     sigmeas = reshape(reverse(data[:,3]),:,1)
+#     r = reshape(r,:,1)
+    empty_dict = Dict(keys(U238_new).=>0.0.*values(U238_new))
+    zon_loglike_objective = Zoned.create_zon_loglike_objective(Ea,COAST.Rjoules,D0,U238_new,empty_dict,empty_dict,Nt,Nx,t,r,Pbmeas,sigmeas,ngrains)
+    grad_loglike_objective = Zoned.create_grad_loglike_objective(Ea,COAST.Rjoules,D0,U238_new,empty_dict,empty_dict,Nt,Nx,t,r,Pbmeas,sigmeas,ngrains)
 
-#end
+    n_constr = Nt-1
+    upper_bound_constr = 100*ones(n_constr)
+    lower_bound_constr = 0.0*ones(n_constr)
+
+    prob2 = createProblem(
+        Nt, # should match length T_L, T_U otherwise julia may crash
+        lower_bound_arr, # lower bound on temperature
+        upper_bound_arr, # upper bound
+        n_constr,
+        lower_bound_constr, # lower bound of Pb concentration; i.e. constraints 
+        upper_bound_constr,
+        Nt*n_constr, # number elements in constraint jacobian
+        Nt*n_constr, # number elements in constraint hessian; not needed in approximation
+        zon_loglike_objective, # objective function; sum smoothness (multiobjective not yet possible)
+        Zoned.decrease_constraint,
+        grad_loglike_objective,
+        Zoned.jac_decrease_constraint,
+    )  
+    addOption(prob2, "hessian_approximation", "limited-memory") # hessian rarely (if ever) called; approximation is ok
+    addOption(prob2, "tol", 1e-4) # smoothness not as much of an issue here
+    addOption(prob2,"print_level",5)
+    prob2.x = copy(T)  
+    status=solveProblem(prob2)
+
+    constraint_zon = create_constraint_zon(Ea,COAST.Rjoules,D0,U238_new[1],0.0,0.0,Nt,Nx[1],t,r[1])
+    Pbs = zeros(Nx[1]) # preallocate
+    constraint_zon(prob2.x,Pbs)
+
+    constraint_zon = create_constraint_zon(Ea,COAST.Rjoules,D0,U238_new[2],0.0,0.0,Nt,Nx[2],t,r[2])
+    Pbs2 = zeros(Nx[2]) # preallocate
+    constraint_zon(prob2.x,Pbs2)
+
+    # plot results
+    # plot(t/3.156e13,prob2.x.-273.15,label="fitted t-T",legend=:topleft,lw=2)
+    # plot!(t/3.156e13,T.-273.15,label="starting t-T",lw=2)
+    # xlabel!("time (Ma)")
+    # ylabel!("temperature (°C)")
+    # title!("decreasing: GB119C−42")
+
+    # scatter(r[1][1:end]*1e6,data[1][1:end,2],ribbon=reverse(sigmeas[1][1:end]),xflip=true)
+    # plot!(r[1][1:end]*1e6,reverse(Pbs[1:end]),lw=2,label="fitted values")
+
+end
