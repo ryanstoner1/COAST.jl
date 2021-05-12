@@ -101,9 +101,11 @@ page_3_layout = html.Div([
             dcc.Input(placeholder=" . . .", id="nrows",type="number", min=0, max=75,step=1,style = {'display': 'block','margin-left':'0px','width': '5em'}),
             dbc.Button("Add", id="add"),
             dbc.Button("Clear Selected", id="clear-done"),
+            dbc.Button("Single inversion", id="invert-1"),
             html.Div(id="list-container"),
             html.Div(id="table-container"),
-            html.Div(id="totals")
+            html.Div(id="totals"),
+            html.Div(id="table_slice"),
             ],id="element-to-hide2"
         ),
     ], style= {'visibility': 'hidden','display':'block'} # <-- This is the line that will be changed by the dropdown callback
@@ -350,6 +352,49 @@ def show_totals(done):
     result = "{} of {} tables selected".format(count_done, count_all)
     return result
 
+@app.callback(
+    Output("table_slice","children"),
+    Input("invert-1","n_clicks"),
+    state=[State({"index2": ALL}, 'data'),
+    State({"index2": ALL}, 'columns'),
+    State('Ea-in', 'value'),
+    State('D0-in', 'value'),
+    State('nt','value'),
+    State('t-beg', 'value'),
+    State('t-end', 'value'),
+    State('radius','value')]
+)
+def show_slice(n,table_data,table_columns,Ea,D0,nt,t_beg,t_end,radius):
+    if n is None:
+        return "not called yet!"
+    else:
+        list_dfs = []
+        for (columns,table) in zip(table_columns, table_data):
+            filtered_table = []
+            non_numerics = 0
+            
+            for row in table:
+                try:
+                    new_row = {}
+                    for (key,val) in row.items():
+                        new_row[key] = float(val)
+                    filtered_table.append(new_row)
+                except:
+                    non_numerics += 1
+            
+            print("Processed table & filtered {} non-numeric values.".format(non_numerics))
+
+            df = pd.DataFrame(filtered_table, columns=[c['name'] for c in columns])
+            np_df = df.to_numpy()
+            list_df = np_df.tolist()
+            list_dfs.append(list_df)
+
+        payload = {"Ea":Ea,"D0":D0,"id":23,"function_to_run":"zonation",
+            "data":list_dfs,"t_end":t_end,"t_beg":t_beg,"radius":radius,"Nt":nt}
+        r = requests.post("http://0.0.0.0:8000/model", json=payload)
+        print(r.text)
+        return str(table_data)
+
 # gets called each time button is clicked
 @app.callback(
     Output('zon-output', 'children'),
@@ -386,3 +431,6 @@ def display_output(n,rows1, columns1, rows2, columns2,Ea,D0,nt,t_beg,t_end,radiu
         print(r.text)
 
         return result
+
+
+            
