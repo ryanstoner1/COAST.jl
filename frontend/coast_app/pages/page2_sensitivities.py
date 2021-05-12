@@ -39,7 +39,7 @@ page_2_layout = html.Div([
         dbc.DropdownMenu(
             label="Diffusion type",
             children=[
-                dbc.DropdownMenuItem("U-Pb Apatite ", id="ap-button",href="/page-3"),
+                dbc.DropdownMenuItem("U-Pb Apatite (Cherniak, 2000)", id="ap-button",href="/page-3"),
                 dbc.DropdownMenuItem("U-Th/He Apatite"),
                 dbc.DropdownMenuItem("U-Th/He Zircon"),
                 dbc.DropdownMenuItem("U-Th/He Titanite"),
@@ -70,25 +70,6 @@ page_2_layout = html.Div([
         )),
         html.Div(id='output-data-upload'),
     ]),
-    dcc.Dropdown(
-        id = 'dropdown-to-show_or_hide-element',
-        options=[
-            {'label': 'Show element', 'value': 'on'},
-            {'label': 'Hide element', 'value': 'off'}
-        ],
-        value = 'off'
-    ),
-
-    # Create Div to place a conditionally visible element inside
-    html.Div([
-        # Create element to hide/show, in this case an 'Input Component'
-        dcc.Input(
-        id = 'element-to-hide',
-        placeholder = 'something',
-        value = 'Can you see me?',
-        )
-    ], style= {'visibility': 'hidden','display':'block'} # <-- This is the line that will be changed by the dropdown callback
-    )
 ]) 
 
 @app.callback(Output('session', 'data'),
@@ -105,12 +86,3 @@ def on_click(n_clicks, data):
     data['Ea'] = 250*1e3
     data['D0'] = 3.9*1e-10#data['clicks'] + 1
     return data
-
-@app.callback(
-   Output(component_id='element-to-hide', component_property='style'),
-   [Input(component_id='dropdown-to-show_or_hide-element', component_property='value')])
-def show_hide_element(visibility_state):  
-    if visibility_state == 'on':
-        return {'visibility': 'visible','display':'block'}
-    if visibility_state == 'off':
-        return {'visibility': 'hidden','display':'none'}
