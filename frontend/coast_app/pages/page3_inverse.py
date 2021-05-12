@@ -12,23 +12,6 @@ import sensitivity_analysis
 from dash import callback_context
 from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, Output, State, MATCH, ALL
-d1 = pd.DataFrame(OrderedDict([
-    ('distance', [0]*29),
-    ('date', [0]*29),
-    ('error', [0]*29),
-]))
-
-df2 = pd.DataFrame(OrderedDict([
-    ('distance', [0]*29),
-    ('date', np.zeros(29)),
-    ('error', np.zeros(29)),
-]))
-
-df3 = pd.DataFrame(OrderedDict([
-    ('distance', [0]*29),
-    ('date', np.zeros(29)),
-    ('error', np.zeros(29)),
-]))
 
 page_3_layout = html.Div([
     html.H1('Inverse modeling'),
@@ -110,65 +93,6 @@ page_3_layout = html.Div([
         ),
     ], style= {'visibility': 'hidden','display':'block'} # <-- This is the line that will be changed by the dropdown callback
     ),
-    html.H2("GB119C-10"),
-    dash_table.DataTable(
-        id='t1',
-        data=d1.to_dict('records'),
-        columns=[{
-            'id': 'distance',
-            'name': 'distance',
-            'type': 'numeric'
-        }, {
-            'id': 'date',
-            'name': 'date',
-            'type': 'numeric'
-        }, {
-            'id': 'error',
-            'name': 'error',
-            'type': 'numeric'
-        }],
-        editable=True
-    ),
-    html.Div(id='t1_out'),
-    html.H2("GB119C-32"),
-    dash_table.DataTable(
-        id='t2',
-        data=df2.to_dict('records'),
-        columns=[{
-            'id': 'distance',
-            'name': 'distance',
-            'type': 'numeric'
-        },{
-            'id': 'date',
-            'name': 'date',
-            'type': 'numeric'
-        }, {
-            'id': 'error',
-            'name': 'error',
-            'type': 'numeric'
-        }],
-        editable=True,
-        row_deletable=True
-    ),
-    html.H2("GB119C-42"),
-    dash_table.DataTable(
-        id='t3',
-        data=df3.to_dict('records'),
-        columns=[{
-            'id': 'distance',
-            'name': 'distance',
-            'type': 'numeric'
-        },{
-            'id': 'date',
-            'name': '06/38',
-            'type': 'numeric'
-        }, {
-            'id': 'error',
-            'name': '2 sigma (abs)',
-            'type': 'numeric'
-        }],
-        editable=True
-    ),    
 ])
 
 # output the stored clicks in the table cell.
@@ -208,44 +132,6 @@ def on_button_click(n,nsamp):
         #     for sample in samples.T])
 
         return "pce success {}!".format(nsamp)
-
-@app.callback(
-    Output("example-output", "children"), [Input("table-button", "n_clicks")],Input('t1', 'data'),
-    Input('t1', 'columns'),Input('Ea-in', 'value'),Input('D0-in', 'value'),
-)
-def on_button_click(n,rows1,columns1,Ea,D0):
-    if n is None:
-        return "Not clicked."
-    else:
-        n_t_segs = 6
-        df1 = pd.DataFrame(rows1, columns=[c['name'] for c in columns1])
-        distance = (df1["distance"].tolist())
-        dr = (distance[2] - distance[1])/1e6
-        Lmax = max(distance)/1e6
-        dates = df1["date"].tolist()
-        tmax = max(dates)
-        tmin = min(dates)
-        dates= [dates]
-        errors =  [df1["error"].tolist()]
-        print(str(dates))
-        payload = {"function_to_run":"zonation","zon_n_t_segs": str(n_t_segs),
-            "Ea":str(Ea),"D0":str(D0),"U38Pb06":str(dates),"sigU38Pb06":str(errors),"Lmax":str(Lmax),"tmax":str(tmax),
-        "tmin":str(tmin),"dr":str(dr),"distance":str(distance)}
-
-        r = requests.post("http://api.thermochron.org/model", json=payload)
-        print(r.text)
-        return "200"
-
-@app.callback(
-    Output('t1_out', 'children'),
-    Input('t1', 'data'),
-    Input('t1', 'columns'))
-def display_output(rows, columns):
-    if rows is None:
-        raise PreventUpdate
-    df = pd.DataFrame(rows, columns=[c['name'] for c in columns])
-    result = json.dumps(df["date"].tolist())
-    return result
 
 @app.callback(
    [Output(component_id='element-to-hide', component_property='style'),
@@ -352,6 +238,7 @@ def show_totals(done):
     result = "{} of {} tables selected".format(count_done, count_all)
     return result
 
+# gets called each time button is clicked
 @app.callback(
     Output("table_slice","children"),
     Input("invert-1","n_clicks"),
@@ -395,42 +282,4 @@ def show_slice(n,table_data,table_columns,Ea,D0,nt,t_beg,t_end,radius):
         print(r.text)
         return str(table_data)
 
-# gets called each time button is clicked
-@app.callback(
-    Output('zon-output', 'children'),
-    [Input("zonation-button", "n_clicks")],
-    state=[State('t1', 'data'),
-    State('t1', 'columns'),
-    State('t2', 'data'),
-    State('t2', 'columns'),
-    State('Ea-in', 'value'),
-    State('D0-in', 'value'),
-    State('nt','value'),
-    State('t-beg', 'value'),
-    State('t-end', 'value'),
-    State('radius','value')])
-def display_output(n,rows1, columns1, rows2, columns2,Ea,D0,nt,t_beg,t_end,radius):
-    if rows1 is None:
-        raise PreventUpdate
-    
-    if n is None:
-        return "not called yet!"
-    else:
-        df1 = pd.DataFrame(rows1, columns=[c['name'] for c in columns1])
-        df2 = pd.DataFrame(rows2, columns=[c['name'] for c in columns2])
-        np_df1 = df1.to_numpy()
-        list_df1 = np_df1.tolist()
-        np_df2 = df2.to_numpy()
-        list_df2 = np_df2.tolist()
-        list_dfs = [list_df1, list_df2]
-        Ea = float(Ea)
-        result = json.dumps(df1["date"].tolist() + df2["date"].tolist())
-        payload = {"Ea":Ea,"D0":D0,"id":23,"function_to_run":"zonation",
-            "data":list_dfs,"t_end":t_end,"t_beg":t_beg,"radius":radius,"Nt":nt}
-        r = requests.post("http://api.thermochron.org/model", json=payload)
-        print(r.text)
 
-        return result
-
-
-            
