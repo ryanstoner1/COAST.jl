@@ -9,8 +9,9 @@ import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import sensitivity_analysis
+from dash import callback_context
 from dash.exceptions import PreventUpdate
-from dash.dependencies import Input, Output, State
+from dash.dependencies import Input, Output, State, MATCH, ALL
 d1 = pd.DataFrame(OrderedDict([
     ('distance', [0]*29),
     ('date', [0]*29),
@@ -62,6 +63,7 @@ page_3_layout = html.Div([
             dbc.FormText("Type the activation energy in the box above"),
         ]
     ),
+
     dbc.Button("Process Data", id="table-button", className="mr-2"),
     html.Span(id="example-output", style={"vertical-align": "middle"}),
     html.Br(),
@@ -70,6 +72,42 @@ page_3_layout = html.Div([
     html.Br(),
     dbc.Button("Process zonation", id="zonation-button", className="mr-3"),
     html.Span(id="zon-output", style={"vertical-align": "middle"}),
+    dcc.Dropdown(
+        id = 'dropdown-to-show_or_hide-element',
+        options=[
+            {'label': 'Choose data type', 'value': 'off'},
+            {'label': 'single grain', 'value': 'on'},
+            {'label': 'zonation data', 'value': 'on2'}
+        ],
+        value = 'off'
+    ),
+    # Create Div to place a conditionally visible element inside
+    html.Div([
+        # Create element to hide/show, in this case an 'Input Component'
+        dcc.Input(
+        id = 'element-to-hide',
+        placeholder = 'something',
+        value = 'Can you see me?',
+        )
+    ], style= {'visibility': 'hidden','display':'block'} # <-- This is the line that will be changed by the dropdown callback
+    ),
+    # Create Div to place a conditionally visible element inside
+    html.Div([
+        # Create element to hide/show, in this case an 'Input Component'        
+        html.Div([
+            html.Div('Sample name (optional)'),
+            dcc.Input(id="new-item"),
+            html.Div('Number rows'),
+            dcc.Input(placeholder=" . . .", id="nrows",type="number", min=0, max=75,step=1,style = {'display': 'block','margin-left':'0px','width': '5em'}),
+            dbc.Button("Add", id="add"),
+            dbc.Button("Clear Selected", id="clear-done"),
+            html.Div(id="list-container"),
+            html.Div(id="table-container"),
+            html.Div(id="totals")
+            ],id="element-to-hide2"
+        ),
+    ], style= {'visibility': 'hidden','display':'block'} # <-- This is the line that will be changed by the dropdown callback
+    ),
     html.H2("GB119C-10"),
     dash_table.DataTable(
         id='t1',
@@ -107,7 +145,8 @@ page_3_layout = html.Div([
             'name': 'error',
             'type': 'numeric'
         }],
-        editable=True
+        editable=True,
+        row_deletable=True
     ),
     html.H2("GB119C-42"),
     dash_table.DataTable(
@@ -204,6 +243,111 @@ def display_output(rows, columns):
         raise PreventUpdate
     df = pd.DataFrame(rows, columns=[c['name'] for c in columns])
     result = json.dumps(df["date"].tolist())
+    return result
+
+@app.callback(
+   [Output(component_id='element-to-hide', component_property='style'),
+   Output(component_id='element-to-hide2', component_property='style')],
+   [Input(component_id='dropdown-to-show_or_hide-element', component_property='value')])
+def show_hide_element(visibility_state):  
+    if visibility_state == 'on':
+        return {'visibility': 'visible','display':'block'},{'visibility': 'hidden','display':'none'}
+    if visibility_state == 'off':
+        return {'visibility': 'hidden','display':'none'},{'visibility': 'hidden','display':'none'}
+    if visibility_state == 'on2':
+        return {'visibility': 'hidden','display':'none'},{'visibility': 'visible','display':'block'}
+
+style_todo = {"display": "inline", "margin": "10px"}
+style_done = {"textDecoration": "line-through", "color": "#888"}
+style_done.update(style_todo)
+
+
+@app.callback(
+    [
+        Output("list-container", "children"),
+        Output("new-item", "value"),
+    ],
+    [
+        Input("add", "n_clicks"),
+        Input("new-item", "n_submit"),
+        Input("clear-done", "n_clicks")
+    ],
+    [
+        State("new-item", "value"),
+        State("nrows","value"),
+        State({"index2": ALL}, 'data'),
+        State({"index": ALL}, "children"),
+        State({"index": ALL, "type": "done"}, "value")
+    ]
+)
+def edit_list(add, add2, clear, new_item, nrows_table, table_data, items, items_done):
+    
+
+    triggered = [t["prop_id"] for t in callback_context.triggered]
+    adding = len([1 for i in triggered if i in ("add.n_clicks", "new-item.n_submit")])
+    clearing = len([1 for i in triggered if i == "clear-done.n_clicks"])
+    new_spec = [
+        (datum, text, done) for datum, text, done in zip(table_data, items, items_done)
+        if not (clearing and done)
+    ]
+    
+    if adding:
+        new_spec.append(([{'distance':0.0,'date':0.0,'error':0.0}]*nrows_table,new_item, []))
+
+    new_list = [
+        html.Div([
+            html.Div([html.H3(text)], id={"index": i}, style=style_done if done else style_todo),
+            dcc.Checklist(
+                id={"index": i, "type": "done"},
+                options=[{"label": "", "value": "done"}],
+                value=done,
+                style={"display": "inline"},
+                labelStyle={"display": "inline"}
+            ),
+            dash_table.DataTable(
+                id={"index2": i},
+                columns=[{
+                    'id': 'distance',
+                    'name': 'distance',
+                    'type': 'numeric'
+                }, {
+                    'id': 'date',
+                    'name': 'date',
+                    'type': 'numeric'
+                }, {
+                    'id': 'error',
+                    'name': 'error',
+                    'type': 'numeric'
+                }],
+                data=datum,
+                editable=True,
+                row_deletable=True
+            ),   
+        ], style={"clear": "both"})
+        for i, (datum, text, done) in enumerate(new_spec)
+    ]
+    
+    return [new_list, "" if adding else new_item]
+
+
+@app.callback(
+    Output({"index": MATCH}, "style"),
+    Input({"index": MATCH, "type": "done"}, "value")
+)
+def mark_done(done):
+    
+    return style_done if done else style_todo
+
+
+@app.callback(
+    Output("totals", "children"),
+    Input({"index": ALL, "type": "done"}, "value")
+)
+def show_totals(done):
+    
+    count_all = len(done)
+    count_done = len([d for d in done if d])
+    result = "{} of {} tables selected".format(count_done, count_all)
     return result
 
 # gets called each time button is clicked
