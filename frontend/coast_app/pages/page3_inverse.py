@@ -70,7 +70,7 @@ page_3_layout = html.Div([
         dcc.Input(
         id = 'element-to-hide',
         placeholder = 'something',
-        value = 'Can you see me?',
+        value = 'TODO: single grain inversion',
         )
     ], style= {'visibility': 'hidden','display':'block'} # <-- This is the line that will be changed by the dropdown callback
     ),
@@ -137,7 +137,7 @@ def on_button_click(n,nsamp):
    [Output(component_id='element-to-hide', component_property='style'),
    Output(component_id='element-to-hide2', component_property='style')],
    [Input(component_id='dropdown-to-show_or_hide-element', component_property='value')])
-def show_hide_element(visibility_state):  
+def show_hide_element_p3(visibility_state):  
     if visibility_state == 'on':
         return {'visibility': 'visible','display':'block'},{'visibility': 'hidden','display':'none'}
     if visibility_state == 'off':
