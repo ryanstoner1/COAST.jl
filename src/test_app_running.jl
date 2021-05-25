@@ -2,7 +2,9 @@
 # testing post and get requests
 function route_test_page_get_post!(progress_test,html_coast_introduction)
 
-
+    # allow cors headers because chrome complains about these otherwise
+    Genie.config.cors_headers["Access-Control-Allow-Methods"] ="GET, POST"
+    Genie.config.cors_headers["Access-Control-Allow-Origin"] = "*"
 
     # simple message to say hi
     route("/") do
@@ -12,6 +14,7 @@ function route_test_page_get_post!(progress_test,html_coast_introduction)
   
      # use e.g. curl to test
      route("/", method = POST) do
+      print(jsonpayload())
        aa = jsonpayload()["name"]
        print("testing progress script! \n")
        progress_test[1] += 1.0
