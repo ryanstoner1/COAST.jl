@@ -24,6 +24,7 @@
   "author": "Ryan Stoner <rstoner@ucsb.edu>",
   "license": "MIT",
   "dependencies": {
+    "axios": "^0.21.1",
     "highcharts": "^9.0.0",
     "highcharts-react-official": "^3.0.0",
     "ramda": "^0.26.1"
@@ -46,8 +47,8 @@
     "react": "^16.8.6",
     "react-docgen": "^4.1.1",
     "react-dom": "^16.8.6",
-    "styled-jsx": "^3.2.1",
     "style-loader": "^0.23.1",
+    "styled-jsx": "^3.2.1",
     "webpack": "4.36.1",
     "webpack-cli": "3.3.6",
     "webpack-serve": "3.1.0"
