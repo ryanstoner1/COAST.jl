@@ -21,9 +21,14 @@ html_coast_introduction = """
     <a href="https://github.com/ryanstoner1/COAST.jl/">Github page.</a></p> 
 """
 
+Genie.config.cors_headers["Access-Control-Allow-Credentials"] = "true"
+Genie.config.cors_headers["Access-Control-Allow-Methods"] = "GET,HEAD,OPTIONS,POST,PUT"
+Genie.config.cors_headers["Access-Control-Allow-Headers"] = "*"
+Genie.config.cors_headers["Access-Control-Request-Headers"] = "*"
+#Genie.config.cors_headers["Access-Control-Allow-Headers", "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers"]
 # allow cors headers because chrome complains about these otherwise
-Genie.config.cors_headers["Access-Control-Allow-Methods"] ="GET,POST"
-
+#Genie.config.cors_headers["Access-Control-Allow-Methods"] ="GET, POST"
+Genie.config.cors_headers["Access-Control-Allow-Origin"] = "*"
 progress_test = [0.0]
 function launchServer(progress_test,port)
   # holds run info
@@ -38,7 +43,7 @@ function launchServer(progress_test,port)
     print("running model POST setup \n")
     # extract payload from front-end
     payload = jsonpayload()
-    #print(payload)
+
     # run appropriate function(s)    
     output_string = parse_and_run_payload!(run_queue,payload)
 
@@ -69,13 +74,14 @@ end
 
 # function to run in COAST
 function parse_and_run_payload!(queue,payload)
-  id = payload["id"]
+  #id = payload["id"]
   # if id in queue["ids"]
   #   return "Run already in progress!"
   # else
   #   push!(queue["ids"],id)
   # end
   
+  # update stats
   push!(queue["progress_percent"],0) 
   push!(queue["results"],Dict()) 
   function_to_COAST = payload["function_to_run"]
@@ -96,29 +102,84 @@ function parse_and_run_payload!(queue,payload)
     data = payload["data"]
     vec_grains = convert(Vector{Vector{Vector{Float64}}},data)
     vec_grains = [collect(reduce(hcat,grain_data)') for grain_data in vec_grains]
-    outstring = zonation_sensitivity(Ea,D0,rad, vec_grains, t_beg,t_end, Nt)
+    outstring = zonation_sensitivity(Ea,D0,rad, vec_grains, t_beg,t_end, Nt)  
+    return outstring
+
+  elseif function_to_COAST=="single_grain"
+    Etrap = payload["Etrap"]
+    Etrap = parse(Float64,Etrap)
+    alpha = payload["alpha"]
+    alpha = parse(Float64, alpha)
+    c0 = payload["c0"]
+    c0 = parse(Float64, c0)
+    c1 = payload["c1"]
+    c1 = parse(Float64, c1)
+    c2 = payload["c2"]
+    c2 = parse(Float64, c2)
+    c3 = payload["c3"]
+    c3 = parse(Float64, c3)
+    rmr0=payload["rmr0"]
+    rmr0 = parse(Float64, rmr0)
+    eta_q = payload["eta_q"]
+    eta_q = parse(Float64, eta_q)
+    L_dist = payload["L_dist"]
+    L_dist = parse(Float64, L_dist)
+    psi = payload["psi"]
+    psi = parse(Float64, psi)
+    omega = payload["omega"]
+    omega = parse(Float64, omega)
+    E_L = payload["E_L"]
+    E_L = parse(Float64, E_L)
+    D0L_a2 = payload["D0L_a2"]
+    D0L_a2 = parse(Float64, D0L_a2)
+    rad = payload["rad"]
+    rad = parse(Float64, rad)
+    u38 = payload["u38"]
+    u38 = parse(Float64, u38)
+    th32 = payload["th32"]
+    th32 = parse(Float64, th32)
+    raw_tT = JSON3.read(payload["tT"])
+    print(raw_tT)
+
+    times = [data_pt["x"]*COAST.sec_in_yrs for data_pt in raw_tT]
     
+    T = [data_pt["y"]+273.15 for data_pt in raw_tT]
+    
+
+    # times = payload["times"]
+    # times = convert(Vector{Float64},times)
+    # T = payload["T"]
+    # T = convert(Vector{Float64},T)
+    if (
+      isnan(rmr0) ||
+      isnan(c0) ||
+      isnan(c1) ||
+      isnan(c2) ||
+      isnan(c3) ||
+      isnan(alpha) ||
+      isnan(eta_q) ||
+      isnan(L_dist)||
+      isnan(psi) ||
+      isnan(omega) ||
+      isnan(Etrap)
+        )
+      rmr0 = 1.0
+      c0 = 1.0
+      c1 = 1.0
+      c2 = 1.0
+      c3 = 1.0
+      alpha = 1.0
+      eta_q = 1.0
+      L_dist = 1.0  
+      psi = 0.0
+      omega = 0.0 
+      Etrap = 0.0 
+    end
+    
+    outstring = single_grain(rmr0,c0,c1,c2,c3,alpha,eta_q,L_dist,psi,omega,Etrap,rad,u38,th32,E_L,D0L_a2,times,T)
     return outstring
   end
-  if function_to_COAST == "zonation"
-    print("Running zonation script! \n")
-    n_t = payload["zon_n_t_segs"]
-    Ea = payload["Ea"]
-    D0 = payload["D0"]
-    U38_Pb06 = payload["U38Pb06"] # matrix
-    sigU38_Pb06 = payload["sigU38Pb06"] # matrix
-    L = payload["Lmax"]
-    tmax = payload["tmax"]
-    tmin = payload["tmin"]
-    # 
-    dr = payload["dr"]
-    distance = payload["distance"] # Vector
-    Tbound_top = payload["Tbound_top"]
-    Tbound_bot = payload["Tbound_bot"]
-    outstring = zonation_n_times_forward(distance,L,n_t,Ea,D0,U38_Pb06,sigU38_Pb06,dr,
-      tmax,tmin,Tbound_top,Tbound_bot)
-    return outstring
-  end
+
 
   return "Passing JSON payload to COAST successful!"
 end
@@ -252,6 +313,19 @@ function zonation_sensitivity(Ea,D0,rad,vec_grains,t_beg,t_end,Nt)
   end
 
   return out
+end
+
+function single_grain(rmr0,c0,c1,c2,c3,alpha,eta_q,L_dist,psi,omega,Etrap,L,u38,th32,E_L,D0L_a2,times,T)
+  # preprocess concentrations
+  (U238_V,U235_V,Th232_V,U238_mol,U235_mol,Th232_mol) = ppm_to_atoms_per_volume(u38,th32,density=3.20)
+  L2 = 60*1e-4
+  n_iter = 60
+  log10D0L_a2_rdaam = log10(D0L_a2*L^2/L2^2)
+  mass_he_t1 = rdaam_forward_diffusion(alpha,c0,c1,c2,c3,rmr0,eta_q,L_dist,psi,omega,Etrap,COAST.Rjoules,E_L,log10D0L_a2_rdaam,n_iter,
+                   U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,L,times...,T...)
+  outstring = string(mass_he_t1)
+  #outstring = "ran successfully"
+  return outstring
 end
 
 end # end module
