@@ -31,7 +31,7 @@ using .Zoned
 export loaded_COAST
 
 # preprocessing
-export decompose_eu, ppm_to_atoms_per_volume, UTh_date_to_He_mols
+export decompose_eu, conc_to_atoms_per_volume, UTh_date_to_He_mols
 
 # treating setup
 export define_variables!, constraint_func, constrain_upper

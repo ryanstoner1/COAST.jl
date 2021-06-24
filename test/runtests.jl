@@ -27,7 +27,7 @@ end
     n_iter = 60.0
 
     # preprocess concentrations
-    (U238_V,U235_V,Th232_V,U238_mol,U235_mol,Th232_mol) = ppm_to_atoms_per_volume(U238,0.0,density=3.20)
+    (U238_V,U235_V,Th232_V,U238_mol,U235_mol,Th232_mol) = conc_to_atoms_per_volume(U238,0.0,density=3.20)
 
     """
     check if RDAAM reproduces vanilla Durango
@@ -65,6 +65,8 @@ end
                    U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,L,times...,T...)
     pre_he_t2 = (8*(U238_mol*exp(43.6*1e6*sec_in_yrs/τ38)-U238_mol)+
                  7*(U235_mol*exp(43.6*1e6*sec_in_yrs/τ35)-U235_mol))# Dodson value
+    print("mass of he is: $(mass_he_t2) \n")
+    print("predicted mass of he is: $(pre_he_t2) \n")
     # non-redistributed value
     @test isapprox(mass_he_t2/pre_he_t2,1.0; rtol = 1e-2)
 
@@ -140,7 +142,7 @@ end
      times = collect(LinRange(120.0,0.01,time_segs).*3.1558e7*1e6)
 
      # preprocess concentrations
-     (U238_V,U235_V,Th232_V,U238_mol,U235_mol,Th232_mol) = ppm_to_atoms_per_volume(U238,0.0,density=3.20)
+     (U238_V,U235_V,Th232_V,U238_mol,U235_mol,Th232_mol) = conc_to_atoms_per_volume(U238,0.0,density=3.20)
 
      L1 = 90*1e-4
      logD0_a2 = log10(10^1.5/(L1^2)) # cm^2/s
