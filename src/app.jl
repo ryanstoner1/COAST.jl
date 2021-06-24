@@ -25,22 +25,20 @@ Genie.config.cors_headers["Access-Control-Allow-Credentials"] = "true"
 Genie.config.cors_headers["Access-Control-Allow-Methods"] = "GET,HEAD,OPTIONS,POST,PUT"
 Genie.config.cors_headers["Access-Control-Allow-Headers"] = "*"
 Genie.config.cors_headers["Access-Control-Request-Headers"] = "*"
-#Genie.config.cors_headers["Access-Control-Allow-Headers", "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers"]
-# allow cors headers because chrome complains about these otherwise
-#Genie.config.cors_headers["Access-Control-Allow-Methods"] ="GET, POST"
 Genie.config.cors_headers["Access-Control-Allow-Origin"] = "*"
 progress_test = [0.0]
+run_list = []
+
 function launchServer(progress_test,port)
   # holds run info
   run_queue = Dict("ids"=>[],"progress_percent"=>[],"results"=>[])
-
+  
    # configuration to make website happy
    Genie.config.run_as_server = true
    Genie.config.server_host = "0.0.0.0"
    Genie.config.server_port = port
 
   route("/model", method = POST) do
-    print("running model POST setup \n")
     # extract payload from front-end
     payload = jsonpayload()
 
@@ -69,24 +67,21 @@ function launchServer(progress_test,port)
   # create other page for testing purposes
   route_test_page_get_post!(progress_test,html_coast_introduction)
 
+  
   Genie.AppServer.startup()
 end
 
 # function to run in COAST
 function parse_and_run_payload!(queue,payload)
-  #id = payload["id"]
-  # if id in queue["ids"]
-  #   return "Run already in progress!"
-  # else
-  #   push!(queue["ids"],id)
-  # end
   
   # update stats
   push!(queue["progress_percent"],0) 
   push!(queue["results"],Dict()) 
   function_to_COAST = payload["function_to_run"]
+  
   if function_to_COAST=="zonation"
     print("Running zonation script! \n")
+
     Ea = payload["Ea"]
     Ea = convert(Float64,Ea)
     D0 = payload["D0"]
@@ -103,6 +98,154 @@ function parse_and_run_payload!(queue,payload)
     vec_grains = convert(Vector{Vector{Vector{Float64}}},data)
     vec_grains = [collect(reduce(hcat,grain_data)') for grain_data in vec_grains]
     outstring = zonation_sensitivity(Ea,D0,rad, vec_grains, t_beg,t_end, Nt)  
+    return outstring
+  elseif function_to_COAST=="store_params"
+    userIP = payload["userIP"]
+    push!(run_list,Dict(userIP=>payload))
+    outstring = "params stored"
+    return outstring
+  
+  elseif function_to_COAST=="run_xy_flowers09"
+    xData = payload["xData"]
+    yData = payload["yData"]
+    xSeries = payload["xSeries"]
+    ySeries = payload["ySeries"]
+    xSeries = xSeries.+ 273.15
+    ySeries = ySeries*3.1558e7*1e6
+    checkedList = payload["checkedList"]
+    userIP = payload["userIP"]
+
+    ind2run = findall(x -> haskey(x,userIP),run_list)
+    payload2run = run_list[ind2run[1]][userIP]
+    numbertT = parse(Int64,payload2run["numbertT"])
+    tTchecked = "onlydiffparams"
+
+    if length(checkedList)==2
+      x = payload2run[checkedList[1]]
+      y = payload2run[checkedList[2]]
+    elseif !(length(xData)>0) & (length(yData)>0) & (length(checkedList)==1)
+      x = payload2run[checkedList[1]]
+      y = [y["val"] for y in yData if y["check"]==true][1]
+      y = Dict{String,Any}("min"=>y[1]["y"],"main"=>y[2]["y"],"max"=>y[3]["y"]) 
+      tTchecked = "y&diffparam"
+    elseif (length(xData)>0) & !(length(yData)>0) & length(checkedList)==1
+      x = [x["val"] for x in xData if x["check"]==true][1]
+      x = Dict{String,Any}("min"=>x[1]["x"],"main"=>x[2]["x"],"max"=>x[3]["x"]) 
+      y = payload2run[checkedList[1]]
+      tTchecked = "x&diffparam"
+    elseif (length(xData)>=2) & (length(yData)==0) & (length(checkedList)==0)
+      temp = [x["val"] for x in xData if x["check"]==true][1]  
+      x = temp[1]
+      x = Dict{String,Any}("min"=>x[1]["x"],"main"=>x[2]["x"],"max"=>x[3]["x"])  
+      y = temp[2]
+      y = Dict{String,Any}("min"=>y[1]["x"],"main"=>y[2]["x"],"max"=>y[3]["x"]) 
+      tTchecked = "2 x"  
+    elseif (length(yData)>=2) & (length(xData)==0) & (length(checkedList)==0)
+      temp = [y["val"] for y in yData if y["check"]==true][1]  
+      x = temp[1]
+      x = Dict{String,Any}("min"=>x[1]["y"],"main"=>x[2]["y"],"max"=>x[3]["y"]) 
+      y = temp[2]
+      y = Dict{String,Any}("min"=>y[1]["y"],"main"=>y[2]["y"],"max"=>y[3]["y"]) 
+      tTchecked = "2 y"
+    elseif (length(checkedList)==0)
+      x = [x["val"] for x in xData if x["check"]==true][1]
+      x = Dict{String,Any}("min"=>x[1]["x"],"main"=>x[2]["x"],"max"=>x[3]["x"])  
+      y = [y["val"] for y in yData if y["check"]==true][1] 
+      y = Dict{String,Any}("min"=>y[1]["y"],"main"=>y[2]["y"],"max"=>y[3]["y"]) 
+      tTchecked = "1 x&1 y" 
+    end
+    
+    if typeof(x["min"])==String
+      x["max"] = parse(Float64,x["max"])
+      x["min"] = parse(Float64,x["min"]) 
+    end
+
+    if typeof(y["min"])==String
+      y["max"] = parse(Float64,y["max"])
+      y["min"] = parse(Float64,y["min"]) 
+    end
+
+    y["run"] = range(y["min"], stop=y["max"], length=round(Int64,sqrt(numbertT)))
+    x["run"] = range(x["min"], stop=x["max"], length=round(Int64,sqrt(numbertT)))
+    lenXSeries = length(xSeries)
+    lenYSeries = length(ySeries)
+
+    n_iter = 50    
+
+    t_Ma = zeros((round(Int64,sqrt(numbertT)),round(Int64,sqrt(numbertT))))
+    for (i,xi) in enumerate(x["run"])
+        for (j,yi) in enumerate(y["run"])
+          if (tTchecked)=="onlydiffparams"
+              payload2run[checkedList[1]]["main"] = xi
+              payload2run[checkedList[2]]["main"] = yi
+          elseif (tTchecked)=="y&diffparam"
+              payload2run[checkedList[1]]["main"] = xi
+              ySeries[yData[1]["ind"]] = yi
+          elseif (tTchecked)=="x&diffparam"
+              payload2run[checkedList[1]]["main"] = yi
+              xSeries[xData[1]["ind"]] = xi
+          elseif (tTchecked)=="2 x"
+              xSeries[xData[1]["ind"]] = xi
+              xSeries[xData[2]["ind"]] = xi
+          elseif (tTchecked)=="2 y"
+              ySeries[yData[1]["ind"]] = yi
+              ySeries[yData[2]["ind"]] = yi
+          elseif (tTchecked)=="1 x&1 y"              
+              xSeries[xData[1]["ind"]] = xi
+              ySeries[yData[1]["ind"]] = yi
+        end
+        xSeriesRun = Float64[]
+        ySeriesRun = Float64[]
+        for ind in 1:lenXSeries
+          if ind<lenXSeries
+            xSeriesRun = vcat(xSeriesRun,LinRange(xSeries[ind], xSeries[ind+1], 50))
+            ySeriesRun = vcat(ySeriesRun,LinRange(ySeries[ind], ySeries[ind+1], 50))
+          end
+        end
+
+        L_dist = typeof(payload2run["Letch"]["main"])==String ? parse(Float64, payload2run["Letch"]["main"]) : convert(Float64, payload2run["Letch"]["main"])
+        U238 = typeof(payload2run["U238"]["main"])==String ? parse(Float64, payload2run["U238"]["main"]) : convert(Float64, payload2run["U238"]["main"])
+        Th232 = typeof(payload2run["Th232"]["main"])==String ? parse(Float64, payload2run["Th232"]["main"]) : convert(Float64, payload2run["Th232"]["main"])
+        Ea = typeof(payload2run["Ea"]["main"])==String ? parse(Float64, payload2run["Ea"]["main"]) : convert(Float64, payload2run["Ea"]["main"])
+        L = typeof(payload2run["rad"]["main"])==String ? parse(Float64, payload2run["rad"]["main"]) : convert(Float64, payload2run["rad"]["main"])
+        D0 = typeof(payload2run["D0"]["main"])==String ? parse(Float64, payload2run["D0"]["main"]) : convert(Float64, payload2run["D0"]["main"])
+        rmr0 = typeof(payload2run["rmr0"]["main"])==String ? parse(Float64, payload2run["rmr0"]["main"]) : convert(Float64, payload2run["rmr0"]["main"])
+    
+        alpha = typeof(payload2run["alpha"]["main"])==String ? parse(Float64, payload2run["alpha"]["main"]) : convert(Float64, payload2run["alpha"]["main"])
+        c0 = typeof(payload2run["c0Value"]["main"])==String ? parse(Float64, payload2run["c0Value"]["main"]) : convert(Float64, payload2run["c0Value"]["main"])
+        c1 = typeof(payload2run["c1Value"]["main"])==String ? parse(Float64, payload2run["c1Value"]["main"]) : convert(Float64, payload2run["c1Value"]["main"])
+        c2 = typeof(payload2run["c2Value"]["main"])==String ? parse(Float64, payload2run["c2Value"]["main"]) : convert(Float64, payload2run["c2Value"]["main"])
+        c3 = typeof(payload2run["c3Value"]["main"])==String ? parse(Float64, payload2run["c3Value"]["main"]) : convert(Float64, payload2run["c3Value"]["main"])
+        eta_q = typeof(payload2run["etaq"]["main"])==String ? parse(Float64, payload2run["etaq"]["main"]) : convert(Float64, payload2run["etaq"]["main"])
+        psi = typeof(payload2run["psi"]["main"])==String ? parse(Float64, payload2run["psi"]["main"]) : convert(Float64, payload2run["psi"]["main"])
+        omega = typeof(payload2run["omega"]["main"])==String ? parse(Float64, payload2run["omega"]["main"]) : convert(Float64, payload2run["omega"]["main"])
+        etrap = typeof(payload2run["etrap"]["main"])==String ? parse(Float64, payload2run["etrap"]["main"]) : convert(Float64, payload2run["etrap"]["main"])
+
+        (U238_V,U235_V,Th232_V,U238_mol,U235_mol,Th232_mol
+            )= conc_to_atoms_per_volume(U238*1e-6,Th232*1e-6)
+        L2 = 60
+        log10D0L_a2_rdaam = log10(exp(D0)*L^2/L2^2)
+          
+        # print(alpha,"\n",c0,"\n",c1,"\n",c2,"\n",c3,"\n",rmr0,"\n",eta_q,"\n",L_dist*1e-4,"\n",psi,"\n",omega,"\n",(etrap*1e3),"\n",COAST.Rjoules,"\n",(Ea*1e3),"\n",log10D0L_a2_rdaam,"\n",n_iter,"\n",
+        # U238_mol,"\n",U238_V,"\n",U235_mol,"\n",U235_V,"\n",Th232_mol,"\n",Th232_V,"\n",L,"\n")
+
+        he_est = COAST.rdaam_forward_diffusion(alpha,c0,c1,c2,c3,rmr0,eta_q,L_dist*1e-4,psi,omega,etrap*1e3,COAST.Rjoules,Ea*1e3,log10D0L_a2_rdaam,n_iter,
+        U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,L*1e-6,reverse(ySeriesRun)...,reverse(xSeriesRun[1:end-1])...)
+        pre_he_t2 = (8*(U238_mol*exp(43.6*1e6*COAST.sec_in_yrs/COAST.τ38)-U238_mol)+
+                 7*(U235_mol*exp(43.6*1e6*COAST.sec_in_yrs/COAST.τ35)-U235_mol))
+        
+        t_val = [1e15]
+        for i=1:10
+          f0 = (8*(U238_mol*exp(t_val[1]/COAST.τ38)-U238_mol)+
+          7*(U235_mol*exp(t_val[1]/COAST.τ35)-U235_mol)) - he_est
+          f0_prime = 8*(U238_mol*exp(t_val[1]/COAST.τ38)/COAST.τ38)+7*(U235_mol*exp(t_val[1]/COAST.τ35)/COAST.τ35)
+          t_val[1] = t_val[1] - f0/f0_prime
+        end
+        t_Ma[i,j] = t_val[1]/(1e6*COAST.sec_in_yrs)
+      end
+    end
+
+    outstring = t_Ma
     return outstring
 
   elseif function_to_COAST=="single_grain"
@@ -139,7 +282,6 @@ function parse_and_run_payload!(queue,payload)
     th32 = payload["th32"]
     th32 = parse(Float64, th32)
     raw_tT = JSON3.read(payload["tT"])
-    print(raw_tT)
 
     times = [data_pt["x"]*COAST.sec_in_yrs for data_pt in raw_tT]
     
@@ -329,13 +471,3 @@ function single_grain(rmr0,c0,c1,c2,c3,alpha,eta_q,L_dist,psi,omega,Etrap,L,u38,
 end
 
 end # end module
-
-# # run if running locally
-#launchServer(parse(Int, ARGS[1])) # run from dokku or heroku
-
-# if abspath(PROGRAM_FILE) == @__FILE__
-  
-#   print("running app!\n")
-#   progress_test = [0.0]
-#   App.launchServer(progress_test,8000)
-# end
