@@ -1,0 +1,1 @@
+git subtree split --prefix=lib -b split
