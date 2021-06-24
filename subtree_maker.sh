@@ -1,1 +1,1 @@
-git subtree split --prefix=lib -b split
+git subtree split --prefix=frontend/coast_app -b front
