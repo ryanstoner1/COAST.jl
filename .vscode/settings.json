@@ -1,5 +1,4 @@
 {
     "python.pythonPath": "/Users/ryanstoner/.julia/dev/venv/bin/python3",
-    "python.formatting.provider": "black",
-    "julia.environmentPath": "/Users/ryanstoner/.julia/environments/v1.6"
+    "python.formatting.provider": "black"
 }
