@@ -31,4 +31,5 @@ jobs:
         port: ${{ secrets.PORT }}
         script: |
           dokku git:sync --build back ssh://git@github.com/ryanstoner1/COAST.jl.git api1
-          dokku git:sync --build front ssh://git@github.com/ryanstoner1/COAST.jl.git main
+          dokku git:sync --build tdash ssh://git@github.com/ryanstoner1/COAST.jl.git main
+          dokku git:sync --build front ssh://git@github.com/ryanstoner1/COAST.jl.git front
