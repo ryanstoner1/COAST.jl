@@ -2,6 +2,8 @@ from flask import Flask, request, make_response, jsonify
 from werkzeug.utils import secure_filename
 import numpy as np
 import json
+import requests
+import chaospy as chp
 import os 
 
 app = Flask(__name__)
@@ -15,6 +17,47 @@ def get_coast_ip():
     response = jsonify({'ip': request.remote_addr})
     response.headers.add("Access-Control-Allow-Origin", "*")
     return response
+
+@app.route('/getPCE', methods=['GET','POST'])
+def getPCE():
+    if request.method == 'POST':
+
+        data = request.form.get("param1")
+        data = json.loads(data)
+        key_list = []
+        expand_list = []
+        for key in data.keys():
+            try:
+                if data[key]["max"] and data[key]["min"]:
+                    expand_list.append(chp.Uniform(float(data[key]["min"]), float(data[key]["max"])))
+                    key_list.append(key)
+                    print("found expansion parameter")
+                else:                
+                    print("Not varying parameter %s \n".format(key))
+            except:
+                print("skipped numberX and numberZ")
+
+        joint_distribution = chp.J(*expand_list)
+        expansion = chp.generate_expansion(5, joint_distribution)
+        samples = joint_distribution.sample(1000, rule="sobol")
+        print(samples.shape)
+        response = jsonify([key_list, samples.tolist()])
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        julia_data = {
+            "function_to_run": "global_sensitivity",
+            "samples": samples.tolist(),
+            "key_list": key_list,
+            "data": data,
+        }
+
+        r = requests.post('http://0.0.0.0:8000/model',json = julia_data)
+        print(r.text)
+
+        
+        return response 
+    else:
+        error_get = "Error in PCE expansion!"
+    return error_get
 
 @app.route('/getfile', methods=['GET','POST'])
 def getfile():
@@ -34,25 +77,6 @@ def getfile():
         error_get = "Error!"
     return error_get
 
-@app.route("/api/orders", methods=["POST", "OPTIONS"])
-def api_create_order():
-    if request.method == "OPTIONS": # CORS preflight
-        return _build_cors_prelight_response()
-    elif request.method == "POST": # The actual request following the preflight
-        order = dict()
-        order["bugaboo"]= [3,4]
-        return _corsify_actual_response(json.dumps(order))
-
-def _build_cors_prelight_response():
-    response = make_response()
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    response.headers.add('Access-Control-Allow-Headers', "*")
-    response.headers.add('Access-Control-Allow-Methods', "*")
-    return response
-
-def _corsify_actual_response(response):
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    return response
 def parse_hefty_output(text_blob):
     # initialize constraints and constraint boxes
     n_extra_constraints = 0 
