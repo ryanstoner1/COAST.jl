@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback} from 'react';
 import Highcharts from 'highcharts/highcharts';
 import HighchartsReact from 'highcharts-react-official';
 import addExporting from "highcharts/modules/exporting";
@@ -7,6 +7,7 @@ import {ButtonGroup, ToggleButton, InputGroup, FormControl, Dropdown, DropdownBu
 import plotInit from './plotInit_p3.js'
 import plotInitXY from './plotInitXY_p3.js'
 import Menu from './Menu_p3.js'
+import {handleNonchartClick} from './p3/ContextMenu.js'
 import Diff from './diffusion_models_p3.js'
 import "./styles.css";
 addExporting(Highcharts);
@@ -17,31 +18,108 @@ require("highcharts/modules/draggable-points")(Highcharts);
 
 
 /**
- * ExampleComponent is an example component.
- * It takes a property, `label`, and
- * displays it.
- * It renders an input with the property `value`
- * which is editable by the user.
+ * Main app:
+ * used 
  */
 export default function CoastApp() {
     const [diffusionParams, setDiffusionParams] = useState({model: false});
     const [checkedList, setCheckedList] = useState([])
     const [maxChecked, setMaxChecked] = useState(false)
-    const [indPoint, setIndPoint] = useState(null);
     const [xPos, setXPos] = useState("0px");
     const [yPos, setYPos] = useState("0px");
     const [radioValue, setRadioValue] = useState('1');
 
-    const radios = [
-        { name: ' X-Y plot', value: '1' },
-        { name: ' Global sensitivity', value: '2' },
-    ];
     // only visible data
     const [xData,setXData] = useState([]);
     const [yData,setYData] = useState([]);
     const [menu, showMenu] = useState(false);
     const chartRef = useRef(null);   
     const [isChartXY, setIsChartXY] = useState(false); 
+
+    const radios = [
+        { name: ' X-Y plot', value: '1' },
+        { name: ' Global sensitivity', value: '2' },
+    ];
+    const [indPoint, setIndPoint] = useState(null);
+
+    const hideContextMenu = useCallback(() => {
+        showMenu(false);
+      }, [showMenu]);
+
+    const handleContextMenu = useCallback(
+            event => {
+            event.preventDefault();
+                setIndPoint(event.point.index);
+                setXPos(`${event.point.plotX}px`);
+                setYPos(`${event.point.plotY}px`);
+                showMenu(true);            
+            },
+            [showMenu, setXPos, setYPos, setIndPoint]
+        );
+
+    
+
+    const timeContextMenu = (e) => {
+        if (chartRef.current.chart.series[(2*indPoint+1)].visible===false) {
+            chartRef.current.chart.series[(2*indPoint+1)].show();
+            chartRef.current.chart.series[(2*indPoint+1)].options.dragDrop = {
+                draggableX: true, draggableY: false
+            };
+            
+            const xNew = [...chartRef.current.chart.series[(2*indPoint+1)].xData];
+            const yNew = [...chartRef.current.chart.series[(2*indPoint+1)].yData];
+            const xNewAdd = [{x: xNew[0], y: yNew[0]},{x: xNew[1], y: yNew[1]},{x: xNew[2], y: yNew[2]}];
+            
+
+            const maxCheckedCopy = maxChecked;
+
+            // errors if empty 
+            if (maxCheckedCopy=== true) {
+                setXData([...xData,{ind: indPoint, val: [...xNewAdd], check: false, disabled: true}]);
+            } else {
+                setXData([...xData,{ind: indPoint, val: [...xNewAdd], check: false, disabled: false}]);
+            }
+                    
+
+
+        } else {
+            chartRef.current.chart.series[(2*indPoint+1)].hide();
+            setXData(xData => xData.filter(value => value.ind!==(indPoint)));
+
+            chartRef.current.chart.series[(2*indPoint+1)].options.dragDrop = {
+                draggableX: false, draggableY: false
+            };
+        };
+    };
+
+
+    const temperatureContextMenu = (e) => {
+
+        if (chartRef.current.chart.series[(2*indPoint+2)].visible===false) {
+            chartRef.current.chart.series[(2*indPoint+2)].show();
+            chartRef.current.chart.series[(2*indPoint+2)].options.dragDrop = {
+                draggableX: false, draggableY: true
+            };
+            const xNew = [...chartRef.current.chart.series[(2*indPoint+2)].xData];
+            const yNew = [...chartRef.current.chart.series[(2*indPoint+2)].yData];
+            const yNewAdd = [{x: xNew[0], y: yNew[0]},{x: xNew[1], y: yNew[1]},{x: xNew[2], y: yNew[2]}];
+
+            const maxCheckedCopy = maxChecked;
+
+            // errors if empty 
+            if (maxCheckedCopy=== true) {
+                setYData([...yData,{ind: indPoint, val: [...yNewAdd], check: false, disabled: true}]);
+            } else {
+                setYData([...yData,{ind: indPoint, val: [...yNewAdd], check: false, disabled: false}]);
+            }
+        } else {
+            chartRef.current.chart.series[(2*indPoint+2)].hide();
+            chartRef.current.chart.series[(2*indPoint+2)].options.dragDrop = {
+                draggableX: false, draggableY: false
+            };
+            setYData(yData => yData.filter(value => value.ind!==(indPoint)));
+        };
+    };
 
     const initx1 = 20
     const inity1 = 30
@@ -261,23 +339,9 @@ export default function CoastApp() {
                          
         }
     };
-
-    const [options, setOptions] = useState(plotInit(initChartClick, initPointClick, pointDrag));
+    const options = plotInit(initChartClick, initPointClick, pointDrag);
+    //const [options, setOptions] = useState(plotInit(initChartClick, initPointClick, pointDrag));
     const optionsXY = plotInitXY(dataXY);
-    const hideContextMenu = useCallback(() => {
-        showMenu(false);
-      }, [showMenu]);
-
-    const handleContextMenu = useCallback(
-        event => {
-          event.preventDefault();
-            setIndPoint(event.point.index);
-            setXPos(`${event.point.plotX}px`);
-            setYPos(`${event.point.plotY}px`);
-            showMenu(true);            
-        },
-        [showMenu, setXPos, setYPos, setIndPoint]
-    );
     
     const handleXMin = (e,index,chartRef) => {        
         if (e.key === "Enter") {
@@ -369,74 +433,6 @@ export default function CoastApp() {
         window.removeEventListener('keydown', handleKeyDown);
     };
     }, [options.series]);
-    
-    const handleNonchartClick = (e) => {
-        if (!e.altKey) {
-            hideContextMenu();
-        }
-    };
-
-    const timeContextMenu = (e) => {
-        if (chartRef.current.chart.series[(2*indPoint+1)].visible===false) {
-            chartRef.current.chart.series[(2*indPoint+1)].show();
-            chartRef.current.chart.series[(2*indPoint+1)].options.dragDrop = {
-                draggableX: true, draggableY: false
-            };
-            
-            const xNew = [...chartRef.current.chart.series[(2*indPoint+1)].xData];
-            const yNew = [...chartRef.current.chart.series[(2*indPoint+1)].yData];
-            const xNewAdd = [{x: xNew[0], y: yNew[0]},{x: xNew[1], y: yNew[1]},{x: xNew[2], y: yNew[2]}];
-            
-
-            const maxCheckedCopy = maxChecked;
-
-            // errors if empty 
-            if (maxCheckedCopy=== true) {
-                setXData([...xData,{ind: indPoint, val: [...xNewAdd], check: false, disabled: true}]);
-            } else {
-                setXData([...xData,{ind: indPoint, val: [...xNewAdd], check: false, disabled: false}]);
-            }
-                    
-
-
-        } else {
-            chartRef.current.chart.series[(2*indPoint+1)].hide();
-            setXData(xData => xData.filter(value => value.ind!==(indPoint)));
-
-            chartRef.current.chart.series[(2*indPoint+1)].options.dragDrop = {
-                draggableX: false, draggableY: false
-            };
-        };
-    };
-
-
-    const temperatureContextMenu = (e) => {
-
-        if (chartRef.current.chart.series[(2*indPoint+2)].visible===false) {
-            chartRef.current.chart.series[(2*indPoint+2)].show();
-            chartRef.current.chart.series[(2*indPoint+2)].options.dragDrop = {
-                draggableX: false, draggableY: true
-            };
-            const xNew = [...chartRef.current.chart.series[(2*indPoint+2)].xData];
-            const yNew = [...chartRef.current.chart.series[(2*indPoint+2)].yData];
-            const yNewAdd = [{x: xNew[0], y: yNew[0]},{x: xNew[1], y: yNew[1]},{x: xNew[2], y: yNew[2]}];
-
-            const maxCheckedCopy = maxChecked;
- 
-            // errors if empty 
-            if (maxCheckedCopy=== true) {
-                setYData([...yData,{ind: indPoint, val: [...yNewAdd], check: false, disabled: true}]);
-            } else {
-                setYData([...yData,{ind: indPoint, val: [...yNewAdd], check: false, disabled: false}]);
-            }
-        } else {
-            chartRef.current.chart.series[(2*indPoint+2)].hide();
-            chartRef.current.chart.series[(2*indPoint+2)].options.dragDrop = {
-                draggableX: false, draggableY: false
-            };
-            setYData(yData => yData.filter(value => value.ind!==(indPoint)));
-        };
-    };
 
     const handleDiffModel = (e,diffModelType) => {
         setDiffusionParams({model: diffModelType})
@@ -552,9 +548,8 @@ export default function CoastApp() {
     };
 
 
-
         return (
-            <div id='testing2' onClick={handleNonchartClick}>
+            <div id='testing2' onClick={e => handleNonchartClick(e, hideContextMenu)}>
             <div>
             { menu ? <Menu xPos={xPos} yPos={yPos} timeContextMenu={timeContextMenu} temperatureContextMenu={temperatureContextMenu}/> : null }
             </div>
@@ -590,7 +585,7 @@ export default function CoastApp() {
                 <br></br>
                 { (diffusionParams.model==="flowers09") ?
                     <Diff chartRef={chartRef} xData={xData} yData={yData} checkedList={checkedList} maxChecked={maxChecked} onCheckChange={handleCheckFlowers09} 
-                        setIsChartXY={setIsChartXY} setDataXY={setDataXY}
+                        setIsChartXY={setIsChartXY} setDataXY={setDataXY} radioValue={radioValue}
                     />
                 : null}
                 { (diffusionParams.model==="cherniak00") ?
