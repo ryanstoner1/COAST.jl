@@ -117,42 +117,43 @@ function parse_and_run_payload!(queue,payload)
 
     ind2run = findall(x -> haskey(x,userIP),run_list)
     payload2run = run_list[ind2run[1]][userIP]
-    numbertT = parse(Int64,payload2run["numbertT"])
+    numberX = parse(Int64,payload2run["numberX"])
+    numberZ = parse(Int64,payload2run["numberZ"])
     tTchecked = "onlydiffparams"
 
     if length(checkedList)==2
       x = payload2run[checkedList[1]]
-      y = payload2run[checkedList[2]]
+      z = payload2run[checkedList[2]]
     elseif !(length(xData)>0) & (length(yData)>0) & (length(checkedList)==1)
       x = payload2run[checkedList[1]]
-      y = [y["val"] for y in yData if y["check"]==true][1]
-      y = Dict{String,Any}("min"=>y[1]["y"],"main"=>y[2]["y"],"max"=>y[3]["y"]) 
-      tTchecked = "y&diffparam"
+      z = [z["val"] for z in yData if z["check"]==true][1]
+      z = Dict{String,Any}("min"=>z[1]["z"],"main"=>z[2]["z"],"max"=>z[3]["z"]) 
+      tTchecked = "z&diffparam"
     elseif (length(xData)>0) & !(length(yData)>0) & length(checkedList)==1
       x = [x["val"] for x in xData if x["check"]==true][1]
       x = Dict{String,Any}("min"=>x[1]["x"],"main"=>x[2]["x"],"max"=>x[3]["x"]) 
-      y = payload2run[checkedList[1]]
+      z = payload2run[checkedList[1]]
       tTchecked = "x&diffparam"
     elseif (length(xData)>=2) & (length(yData)==0) & (length(checkedList)==0)
       temp = [x["val"] for x in xData if x["check"]==true][1]  
       x = temp[1]
       x = Dict{String,Any}("min"=>x[1]["x"],"main"=>x[2]["x"],"max"=>x[3]["x"])  
-      y = temp[2]
-      y = Dict{String,Any}("min"=>y[1]["x"],"main"=>y[2]["x"],"max"=>y[3]["x"]) 
+      z = temp[2]
+      z = Dict{String,Any}("min"=>z[1]["x"],"main"=>z[2]["x"],"max"=>z[3]["x"]) 
       tTchecked = "2 x"  
     elseif (length(yData)>=2) & (length(xData)==0) & (length(checkedList)==0)
-      temp = [y["val"] for y in yData if y["check"]==true][1]  
+      temp = [z["val"] for z in yData if z["check"]==true][1]  
       x = temp[1]
-      x = Dict{String,Any}("min"=>x[1]["y"],"main"=>x[2]["y"],"max"=>x[3]["y"]) 
-      y = temp[2]
-      y = Dict{String,Any}("min"=>y[1]["y"],"main"=>y[2]["y"],"max"=>y[3]["y"]) 
-      tTchecked = "2 y"
+      x = Dict{String,Any}("min"=>x[1]["z"],"main"=>x[2]["z"],"max"=>x[3]["z"]) 
+      z = temp[2]
+      z = Dict{String,Any}("min"=>z[1]["z"],"main"=>z[2]["z"],"max"=>z[3]["z"]) 
+      tTchecked = "2 z"
     elseif (length(checkedList)==0)
       x = [x["val"] for x in xData if x["check"]==true][1]
       x = Dict{String,Any}("min"=>x[1]["x"],"main"=>x[2]["x"],"max"=>x[3]["x"])  
-      y = [y["val"] for y in yData if y["check"]==true][1] 
-      y = Dict{String,Any}("min"=>y[1]["y"],"main"=>y[2]["y"],"max"=>y[3]["y"]) 
-      tTchecked = "1 x&1 y" 
+      z = [z["val"] for z in yData if z["check"]==true][1] 
+      z = Dict{String,Any}("min"=>z[1]["z"],"main"=>z[2]["z"],"max"=>z[3]["z"]) 
+      tTchecked = "1 x&1 z" 
     end
     
     if typeof(x["min"])==String
@@ -160,39 +161,39 @@ function parse_and_run_payload!(queue,payload)
       x["min"] = parse(Float64,x["min"]) 
     end
 
-    if typeof(y["min"])==String
-      y["max"] = parse(Float64,y["max"])
-      y["min"] = parse(Float64,y["min"]) 
+    if typeof(z["min"])==String
+      z["max"] = parse(Float64,z["max"])
+      z["min"] = parse(Float64,z["min"]) 
     end
 
-    y["run"] = range(y["min"], stop=y["max"], length=round(Int64,sqrt(numbertT)))
-    x["run"] = range(x["min"], stop=x["max"], length=round(Int64,sqrt(numbertT)))
+    z["run"] = range(z["min"], stop=z["max"], length=round(Int64,numberZ))
+    x["run"] = range(x["min"], stop=x["max"], length=round(Int64,numberX))
     lenXSeries = length(xSeries)
     lenYSeries = length(ySeries)
 
     n_iter = 50    
 
-    t_Ma = zeros((round(Int64,sqrt(numbertT)),round(Int64,sqrt(numbertT))))
+    t_Ma = zeros((round(Int64,numberX), round(Int64,numberZ)))
     for (i,xi) in enumerate(x["run"])
-        for (j,yi) in enumerate(y["run"])
+        for (j,zi) in enumerate(z["run"])
           if (tTchecked)=="onlydiffparams"
               payload2run[checkedList[1]]["main"] = xi
-              payload2run[checkedList[2]]["main"] = yi
-          elseif (tTchecked)=="y&diffparam"
+              payload2run[checkedList[2]]["main"] = zi
+          elseif (tTchecked)=="z&diffparam"
               payload2run[checkedList[1]]["main"] = xi
-              ySeries[yData[1]["ind"]] = yi
+              ySeries[yData[1]["ind"]] = zi
           elseif (tTchecked)=="x&diffparam"
-              payload2run[checkedList[1]]["main"] = yi
+              payload2run[checkedList[1]]["main"] = zi
               xSeries[xData[1]["ind"]] = xi
           elseif (tTchecked)=="2 x"
               xSeries[xData[1]["ind"]] = xi
               xSeries[xData[2]["ind"]] = xi
-          elseif (tTchecked)=="2 y"
+          elseif (tTchecked)=="2 z"
               ySeries[yData[1]["ind"]] = yi
-              ySeries[yData[2]["ind"]] = yi
-          elseif (tTchecked)=="1 x&1 y"              
+              ySeries[yData[2]["ind"]] = zi
+          elseif (tTchecked)=="1 x&1 z"              
               xSeries[xData[1]["ind"]] = xi
-              ySeries[yData[1]["ind"]] = yi
+              ySeries[yData[1]["ind"]] = zi
         end
         xSeriesRun = Float64[]
         ySeriesRun = Float64[]
@@ -245,7 +246,16 @@ function parse_and_run_payload!(queue,payload)
       end
     end
 
-    outstring = t_Ma
+    outstring = [t_Ma, x["run"]]
+    return outstring
+
+  elseif function_to_COAST=="global_sensitivity"
+    samples = payload["samples"]
+    print(typeof(samples))
+    print(length(samples))
+    data = payload["data"]
+    print
+    outstring = "response GSA julia"
     return outstring
 
   elseif function_to_COAST=="single_grain"
@@ -285,7 +295,7 @@ function parse_and_run_payload!(queue,payload)
 
     times = [data_pt["x"]*COAST.sec_in_yrs for data_pt in raw_tT]
     
-    T = [data_pt["y"]+273.15 for data_pt in raw_tT]
+    T = [data_pt["z"]+273.15 for data_pt in raw_tT]
     
 
     # times = payload["times"]
