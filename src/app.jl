@@ -1,7 +1,6 @@
 
 
 module App
-using Plots
 using COAST
 using COAST.Zoned
 using JuMP
