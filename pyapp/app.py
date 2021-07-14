@@ -85,7 +85,7 @@ def parse_hefty_output(text_blob):
     min_temp = np.array([])
     max_temp = np.array([])
     dates = np.array([])
-    Tt_names = []
+    tT_names = []
     hasreached_first_Tt = [False, False]
 
     default_envelope_line_ind = 6 
@@ -128,6 +128,10 @@ def parse_hefty_output(text_blob):
                     acc_lo = np.array(line_split[4:]).astype(float)
             
             # see if Tt path data coming up next
+            if line_split[0]==b'Time (Ma)':
+                max_time = line_split[1]
+            if line_split[0]==b'Temp (C)':
+                max_temp = line_split[1]
             if line_split[0]==b'Fit':
                 starting_Tt = True
                 starting_ind = ind+1
@@ -162,7 +166,7 @@ def parse_hefty_output(text_blob):
                     name_Tt = [line_split[0],"best"]
                 else:
                     print("must have good, acceptable or best!")
-                Tt_names.append(name_Tt)
+                tT_names.append(name_Tt)
 
                 if not hasreached_first_Tt[0]:
                     hasreached_first_Tt[0] = True
@@ -194,8 +198,10 @@ def parse_hefty_output(text_blob):
         "acc_time_interp": acc_time_interp.tolist(),
         "t_Ma": t_Ma.tolist(),
         "T_celsius": T_celsius.tolist(),
-        "Tt_names": Tt_names,
+        "tT_names": tT_names,
         "dates": dates.tolist(),
+        "max_temp": float(max_temp),
+        "max_time": float(max_time),
     }
 
     return hefty_data
