@@ -587,7 +587,7 @@ export default function CoastApp() {
                 <br></br>
                 { (diffusionParams.model==="flowers09") ?
                     <Diff chartRef={chartRef} xData={xData} yData={yData} checkedList={checkedList} maxChecked={maxChecked} onCheckChange={handleCheckFlowers09} 
-                        setIsChartXY={setIsChartXY} setDataXY={setDataXY}
+                        setIsChartXY={setIsChartXY} setDataXY={setDataXY} radioValue={radioValue}
                     />
                 : null}
                 { (diffusionParams.model==="cherniak00") ?
