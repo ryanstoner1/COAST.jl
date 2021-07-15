@@ -7,7 +7,6 @@ import {ButtonGroup, ToggleButton, InputGroup, FormControl, Dropdown, DropdownBu
 import plotInit from './plotInit_p3.js'
 import plotInitXY from './plotInitXY_p3.js'
 import Menu from './Menu_p3.js'
-import {handleNonchartClick} from './p3/ContextMenu.js'
 import Diff from './diffusion_models_p3.js'
 import "./styles.css";
 addExporting(Highcharts);
@@ -25,6 +24,7 @@ export default function CoastApp() {
     const [diffusionParams, setDiffusionParams] = useState({model: false});
     const [checkedList, setCheckedList] = useState([])
     const [maxChecked, setMaxChecked] = useState(false)
+    const [indPoint, setIndPoint] = useState(null);
     const [xPos, setXPos] = useState("0px");
     const [yPos, setYPos] = useState("0px");
     const [radioValue, setRadioValue] = useState('1');
@@ -40,24 +40,20 @@ export default function CoastApp() {
         { name: ' X-Y plot', value: '1' },
         { name: ' Global sensitivity', value: '2' },
     ];
-    const [indPoint, setIndPoint] = useState(null);
-
     const hideContextMenu = useCallback(() => {
         showMenu(false);
-      }, [showMenu]);
+    }, [showMenu]);
 
     const handleContextMenu = useCallback(
-            event => {
-            event.preventDefault();
-                setIndPoint(event.point.index);
-                setXPos(`${event.point.plotX}px`);
-                setYPos(`${event.point.plotY}px`);
-                showMenu(true);            
-            },
-            [showMenu, setXPos, setYPos, setIndPoint]
-        );
-
-    
+        event => {
+          event.preventDefault();
+            setIndPoint(event.point.index);
+            setXPos(`${event.point.plotX}px`);
+            setYPos(`${event.point.plotY}px`);
+            showMenu(true);            
+        },
+        [showMenu, setXPos, setYPos, setIndPoint]
+    );
 
     const timeContextMenu = (e) => {
         if (chartRef.current.chart.series[(2*indPoint+1)].visible===false) {
@@ -105,7 +101,7 @@ export default function CoastApp() {
             const yNewAdd = [{x: xNew[0], y: yNew[0]},{x: xNew[1], y: yNew[1]},{x: xNew[2], y: yNew[2]}];
 
             const maxCheckedCopy = maxChecked;
-
+ 
             // errors if empty 
             if (maxCheckedCopy=== true) {
                 setYData([...yData,{ind: indPoint, val: [...yNewAdd], check: false, disabled: true}]);
@@ -120,7 +116,6 @@ export default function CoastApp() {
             setYData(yData => yData.filter(value => value.ind!==(indPoint)));
         };
     };
-
     const initx1 = 20
     const inity1 = 30
     const dataXY1 = [{x:initx1, y:inity1+15}, {x:initx1+50, y:inity1+105}, {x:initx1+105, y:inity1+205}];
@@ -339,8 +334,8 @@ export default function CoastApp() {
                          
         }
     };
-    const options = plotInit(initChartClick, initPointClick, pointDrag);
-    //const [options, setOptions] = useState(plotInit(initChartClick, initPointClick, pointDrag));
+
+    const [options, setOptions] = useState(plotInit(initChartClick, initPointClick, pointDrag));
     const optionsXY = plotInitXY(dataXY);
     
     const handleXMin = (e,index,chartRef) => {        
@@ -433,6 +428,12 @@ export default function CoastApp() {
         window.removeEventListener('keydown', handleKeyDown);
     };
     }, [options.series]);
+    
+    const handleNonchartClick = (e) => {
+        if (!e.altKey) {
+            hideContextMenu();
+        }
+    };
 
     const handleDiffModel = (e,diffModelType) => {
         setDiffusionParams({model: diffModelType})
@@ -548,8 +549,9 @@ export default function CoastApp() {
     };
 
 
+
         return (
-            <div id='testing2' onClick={e => handleNonchartClick(e, hideContextMenu)}>
+            <div id='testing2' onClick={handleNonchartClick}>
             <div>
             { menu ? <Menu xPos={xPos} yPos={yPos} timeContextMenu={timeContextMenu} temperatureContextMenu={temperatureContextMenu}/> : null }
             </div>
