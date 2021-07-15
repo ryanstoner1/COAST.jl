@@ -594,10 +594,6 @@ export default function CoastApp() {
                     <div>TODO: cherniak, 2000 U-Pb</div>
                 : null}
                 <br></br>
-                    <DropdownButton id="dropdown-p3-start" title="type of analysis" variant="outline-primary">
-                    <Dropdown.Item href="#/action-1">X-Y plot</Dropdown.Item>
-                    <Dropdown.Item href="#/action-2">Global sensitivity analysis</Dropdown.Item>
-                    </DropdownButton>
                 </div>
                 
                 <br></br>
