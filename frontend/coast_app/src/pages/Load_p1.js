@@ -3,7 +3,7 @@ import plotHeFTy from './plotHeFTy_p1.js'
 import Highcharts from 'highcharts/highcharts';
 import HighchartsReact from 'highcharts-react-official';
 import {React, useState } from 'react';
-import {Form, Dropdown, DropdownButton} from 'react-bootstrap';
+import {InputGroup, FormControl, Form, Dropdown, DropdownButton} from 'react-bootstrap';
 function Load() {
   const [optionsHeFTy, setOptionsHeFTy] = useState({});
 
@@ -61,7 +61,19 @@ function Load() {
       highcharts={Highcharts}
       options={optionsHeFTy}
     />
+    <InputGroup className="mb-3">
+    <InputGroup.Prepend>
+    <InputGroup.Text id="inputGroup-d0">Number of time segments for sensitivity analysis?<div>&nbsp;</div><input type="checkbox"   value="c3Value"/></InputGroup.Text>
+    </InputGroup.Prepend>
+    <FormControl aria-label="Text input with checkbox" />
+    </InputGroup>
+    <InputGroup className="mb-3">
+    <InputGroup.Prepend>
+    <InputGroup.Text id="inputGroup-d0">Add <div>&nbsp;</div><input type="checkbox"   value="c3Value"/></InputGroup.Text>
+    </InputGroup.Prepend>
+    </InputGroup>
   </div> : null}
+
   </div>);
 }
 
