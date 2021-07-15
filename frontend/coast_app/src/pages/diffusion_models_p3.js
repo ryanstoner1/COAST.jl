@@ -2,11 +2,12 @@ import {React, useState, useEffect} from 'react';
 import {InputGroup, FormControl, Button, Alert} from 'react-bootstrap';
 import axios from 'axios';
 
-const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, setIsChartXY, setDataXY} ) => {
+const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, setIsChartXY, setDataXY, radioValue} ) => {
     const [warnEmpty, setWarnEmpty] = useState(false)
     const [warnNonInt, setWarnNonInt] = useState(false)
     const [warnCheckedBad, setWarnCheckedBad] = useState(false)
-    const [numbertT, setNumbertT] = useState("")
+    const [numberX, setNumberX] = useState("")
+    const [numberZ, setNumberZ] = useState("")
     const [U238, setU238] = useState({main: '', min: '', max: ''})
     const [Th232, setTh232] = useState({main: '', min: '', max: ''})
     const [Ea, setEa] = useState({main: 122.3, min: '', max: ''})
@@ -25,10 +26,11 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     const [etrap, setEtrap] = useState({main: 34, min: '', max: ''})
     // const [juliaResponse, setJuliaResponse] = useState({})
 
-    const handleProcess = (e) => {
+    const handleProcess = (e, radioVal) => {
         const formInit = {
             function_to_run: "store_params",
-            numbertT: numbertT,
+            numberX: numberX,
+            numberZ: numberZ,
             Letch: JSON.parse(JSON.stringify(Letch)),
             U238: U238,
             Th232: Th232,
@@ -47,6 +49,20 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
             etrap: etrap,
             userIP: undefined,
         };
+
+        const xDataCopy = [...xData];
+        const yDataCopy = [...yData];
+        xDataCopy.forEach((value,ind)=>{
+            // makes the processing easier on the python side
+            const newKeyString = "xData".concat(ind.toString())
+            formInit[newKeyString] = {min: value.val[0].x, main: value.val[1].x, max: value.val[2].x}
+        });
+        yDataCopy.forEach((value,ind)=>{
+            // makes the processing easier on the python side
+            const newKeyString = "yData".concat(ind.toString())
+            formInit[newKeyString] = {min: value.val[0].y, main: value.val[1].y, max: value.val[2].y}
+        });
+
         const formXYPlot = {
                 userIP: undefined,
                 xData: xData,
@@ -56,25 +72,45 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
                 checkedList: checkedList,
                 function_to_run: "run_xy_flowers09",
         }
-        console.log([...checkedList])
-        console.log(formInit.U238)
-        console.log(formInit["U238"].main)
-        // check inputs good before running request
-        if (numbertT==="") {
-            setWarnEmpty(true)
-        } else if (Number.isInteger(parseFloat(numbertT))===false) {
-            setWarnNonInt(true)
-        } else if (checkedList.length>0){
-            const checkedListCopy = [...checkedList];
-            checkedListCopy.forEach(value=>{
-                if ((formInit[value].min==="")| (formInit[value].max==="")) {
-                    setWarnCheckedBad(true) 
-                } else {
-                    setWarnCheckedBad(false) 
 
+        if (radioVal==="1") {
+            if (numberX==="") {
+                setWarnEmpty(true)
+            } else if (Number.isInteger(parseFloat(numberX))===false) {
+                setWarnNonInt(true)
+            } else if (checkedList.length>0){
+                const checkedListCopy = [...checkedList];
+                checkedListCopy.forEach(value=>{
+                    if ((formInit[value].min==="")| (formInit[value].max==="")) {
+                        setWarnCheckedBad(true) 
+                    } else {
+                        setWarnCheckedBad(false) 
+                    }
+                })
+                if (warnCheckedBad===false) {
+                    axios.get("http://127.0.0.1:5000/get_coast_ip")
+                    .then((res) => {
+                        formInit.userIP = res.data.ip;            
+                        return axios.post("http://0.0.0.0:8000/model", formInit)                       
+                    }).then(res=> {
+                        formXYPlot.userIP = formInit.userIP;
+                        return axios.post("http://0.0.0.0:8000/model", formXYPlot)           
+                    }).then(res=>{
+                        setIsChartXY(true)
+                        const dataout = res.data[0]
+                        console.log(dataout)
+                        const xout = res.data[1]
+                        console.log(xout)
+                        const dataHighchartsXY = dataout.map(value=>{
+                            return value.map((value_inner,ind)=>{
+                                const returnval = {x:xout[ind], y:value_inner }
+                                return returnval
+                            })
+                        })
+                        setDataXY(dataHighchartsXY)
+                    }).catch(err => console.warn(err));                
                 }
-            })
-            if (warnCheckedBad===false) {
+            } else {
                 axios.get("http://127.0.0.1:5000/get_coast_ip")
                 .then((res) => {
                     formInit.userIP = res.data.ip;            
@@ -85,34 +121,40 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
                 }).then(res=>{
                     setIsChartXY(true)
                     console.log(res.data)
-                    setDataXY(res.data)
-                }).catch(err => console.warn(err));                
-            }
+                    
+                    const dataHighchartsXY = res.data.map(value=>{
+                        return value.map((value_inner,ind)=>{
+                            const returnval = {x:chartRef.current.chart.series[0].xData[ind], y:value_inner }
+                            console.log(returnval)
+                            return returnval
+                        })
+                    })
+                    setDataXY(dataHighchartsXY)
+                }).catch(err => console.warn(err));
+            }            
         } else {
-            axios.get("http://127.0.0.1:5000/get_coast_ip")
-            .then((res) => {
-                formInit.userIP = res.data.ip;            
-                return axios.post("http://0.0.0.0:8000/model", formInit)                       
-            }).then(res=> {
-                formXYPlot.userIP = formInit.userIP;
-                return axios.post("http://0.0.0.0:8000/model", formXYPlot)           
-            }).then(res=>{
-                setIsChartXY(true)
-                setDataXY(res.data)
-                console.log(res.data)
-            }).catch(err => console.warn(err));
-        } 
+            const formData = new FormData();
+            formData.append("param1",JSON.stringify(formInit));   
+            const config = {     
+                headers: { 'content-type': 'application/json' }
+            }
+            axios
+            .post("http://127.0.0.1:5000/getPCE", formData, config)
+            .then(res => console.log(res))
+            .catch(err => console.warn(err))
+        }
         };
 
         // get rid of warnings when user modifies previously incorrect entry
         useEffect(value=>{
             setWarnEmpty(false)
             setWarnNonInt(false)
-        },[numbertT])
+        },[numberX,numberZ])
+
 
     return(
     <div>
-    <Button variant="outline-primary" onClick={handleProcess}>Start sensitivity analysis</Button>
+    <Button variant="outline-primary" onClick={e => handleProcess(e,radioValue)}>Start sensitivity analysis</Button>
     <br></br>
     <br></br>
     { warnEmpty ? <Alert variant={"warning"}>COAST  was unable to process data! Set the number of time-temperature (t-T) paths to solve for before processing.</Alert> : null}
@@ -125,7 +167,8 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
         <InputGroup.Prepend>
         <InputGroup.Text id="inputGroup-npaths">number tT<sub>paths </sub><div>&nbsp;</div><input type="checkbox"   value=" Bike"/></InputGroup.Text>
         </InputGroup.Prepend>
-        <FormControl aria-label="Text input with checkbox" placeholder="total counts (<200,000 single grain, <20,000 profile)" type="number" value={numbertT} onInput={e => setNumbertT(e.target.value)}/>
+        <FormControl aria-label="Text input with checkbox" placeholder="n runs x axis (<100,000 single grain, <15,000 profile)" type="number" value={numberX} onInput={e => setNumberX(e.target.value)}/>
+        <FormControl aria-label="Text input with checkbox" placeholder="n runs countour (<100,000 single grain, <15,000 profile)" type="number" value={numberZ} onInput={e => setNumberZ(e.target.value)}/>
     </InputGroup>                    
     <h5>Diffusion parameters</h5>
     <InputGroup className="mb-3">
