@@ -11,8 +11,48 @@ using Genie.Router
 using Genie.Requests
 using Genie.Renderer.Html
 include("test_app_running.jl")
-
 export launchServer
+
+function run_rdaam_dict(n_iter, xSeriesRun, ySeriesRun, data)
+  L_dist = data["Letch"]
+  U238 = data["U238"]
+  Th232 = data["Th232"]
+  Ea = data["Ea"]
+  rad = data["rad"]
+  D0 = data["D0"]
+  rmr0 = data["rmr0"]
+  alpha = data["alpha"]
+  c0Value = data["c0Value"]
+  c1Value = data["c1Value"]
+  c2Value = data["c2Value"]
+  c3Value = data["c3Value"]
+  eta_q = data["etaq"]
+  psi = data["psi"]
+  omega = data["omega"]
+  etrap = data["etrap"]
+
+
+  (U238_V,U235_V,Th232_V,U238_mol,U235_mol,Th232_mol
+  )= conc_to_atoms_per_volume(U238*1e-6,Th232*1e-6)
+  L2 = 60
+  log10D0L_a2_rdaam = log10(exp(D0)*data["rad"]^2/L2^2)
+  
+  he_est = COAST.rdaam_forward_diffusion(alpha,c0Value,c1Value,c2Value,c3Value,rmr0,eta_q,L_dist*1e-4,psi,omega,etrap*1e3,COAST.Rjoules,Ea*1e3,log10D0L_a2_rdaam,n_iter,
+     U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,rad*1e-6,reverse(ySeriesRun)...,reverse(xSeriesRun[1:end-1])...)
+  # initial guess
+  t_val = [1e15]
+  for i=1:10
+      f0 = (8*(U238_mol*exp(t_val[1]/COAST.τ38)-U238_mol)+
+      7*(U235_mol*exp(t_val[1]/COAST.τ35)-U235_mol)) - he_est
+      f0_prime = 8*(U238_mol*exp(t_val[1]/COAST.τ38)/COAST.τ38)+7*(U235_mol*exp(t_val[1]/COAST.τ35)/COAST.τ35)
+      t_val[1] = t_val[1] - f0/f0_prime
+  end
+  t_Ma = t_val[1]/(1e6*COAST.sec_in_yrs)
+
+  return t_Ma
+
+end
+
 # string to say hello to users
 html_coast_introduction = """
     \n <p>COAST is a program for thermochronology sensitivity analysis and
@@ -115,23 +155,23 @@ function parse_and_run_payload!(queue,payload)
     userIP = payload["userIP"]
 
     ind2run = findall(x -> haskey(x,userIP),run_list)
-    payload2run = run_list[ind2run[1]][userIP]
-    numberX = parse(Int64,payload2run["numberX"])
-    numberZ = parse(Int64,payload2run["numberZ"])
+    data = run_list[ind2run[1]][userIP]
+    numberX = parse(Int64,data["numberX"])
+    numberZ = parse(Int64,data["numberZ"])
     tTchecked = "onlydiffparams"
 
     if length(checkedList)==2
-      x = payload2run[checkedList[1]]
-      z = payload2run[checkedList[2]]
+      x = data[checkedList[1]]
+      z = data[checkedList[2]]
     elseif !(length(xData)>0) & (length(yData)>0) & (length(checkedList)==1)
-      x = payload2run[checkedList[1]]
+      x = data[checkedList[1]]
       z = [z["val"] for z in yData if z["check"]==true][1]
       z = Dict{String,Any}("min"=>z[1]["z"],"main"=>z[2]["z"],"max"=>z[3]["z"]) 
       tTchecked = "z&diffparam"
     elseif (length(xData)>0) & !(length(yData)>0) & length(checkedList)==1
       x = [x["val"] for x in xData if x["check"]==true][1]
       x = Dict{String,Any}("min"=>x[1]["x"],"main"=>x[2]["x"],"max"=>x[3]["x"]) 
-      z = payload2run[checkedList[1]]
+      z = data[checkedList[1]]
       tTchecked = "x&diffparam"
     elseif (length(xData)>=2) & (length(yData)==0) & (length(checkedList)==0)
       temp = [x["val"] for x in xData if x["check"]==true][1]  
@@ -176,13 +216,13 @@ function parse_and_run_payload!(queue,payload)
     for (i,xi) in enumerate(x["run"])
         for (j,zi) in enumerate(z["run"])
           if (tTchecked)=="onlydiffparams"
-              payload2run[checkedList[1]]["main"] = xi
-              payload2run[checkedList[2]]["main"] = zi
+              data[checkedList[1]]["main"] = xi
+              data[checkedList[2]]["main"] = zi
           elseif (tTchecked)=="z&diffparam"
-              payload2run[checkedList[1]]["main"] = xi
+              data[checkedList[1]]["main"] = xi
               ySeries[yData[1]["ind"]] = zi
           elseif (tTchecked)=="x&diffparam"
-              payload2run[checkedList[1]]["main"] = zi
+              data[checkedList[1]]["main"] = zi
               xSeries[xData[1]["ind"]] = xi
           elseif (tTchecked)=="2 x"
               xSeries[xData[1]["ind"]] = xi
@@ -203,23 +243,23 @@ function parse_and_run_payload!(queue,payload)
           end
         end
 
-        L_dist = typeof(payload2run["Letch"]["main"])==String ? parse(Float64, payload2run["Letch"]["main"]) : convert(Float64, payload2run["Letch"]["main"])
-        U238 = typeof(payload2run["U238"]["main"])==String ? parse(Float64, payload2run["U238"]["main"]) : convert(Float64, payload2run["U238"]["main"])
-        Th232 = typeof(payload2run["Th232"]["main"])==String ? parse(Float64, payload2run["Th232"]["main"]) : convert(Float64, payload2run["Th232"]["main"])
-        Ea = typeof(payload2run["Ea"]["main"])==String ? parse(Float64, payload2run["Ea"]["main"]) : convert(Float64, payload2run["Ea"]["main"])
-        L = typeof(payload2run["rad"]["main"])==String ? parse(Float64, payload2run["rad"]["main"]) : convert(Float64, payload2run["rad"]["main"])
-        D0 = typeof(payload2run["D0"]["main"])==String ? parse(Float64, payload2run["D0"]["main"]) : convert(Float64, payload2run["D0"]["main"])
-        rmr0 = typeof(payload2run["rmr0"]["main"])==String ? parse(Float64, payload2run["rmr0"]["main"]) : convert(Float64, payload2run["rmr0"]["main"])
+        L_dist = typeof(data["Letch"]["main"])==String ? parse(Float64, data["Letch"]["main"]) : convert(Float64, data["Letch"]["main"])
+        U238 = typeof(data["U238"]["main"])==String ? parse(Float64, data["U238"]["main"]) : convert(Float64, data["U238"]["main"])
+        Th232 = typeof(data["Th232"]["main"])==String ? parse(Float64, data["Th232"]["main"]) : convert(Float64, data["Th232"]["main"])
+        Ea = typeof(data["Ea"]["main"])==String ? parse(Float64, data["Ea"]["main"]) : convert(Float64, data["Ea"]["main"])
+        L = typeof(data["rad"]["main"])==String ? parse(Float64, data["rad"]["main"]) : convert(Float64, data["rad"]["main"])
+        D0 = typeof(data["D0"]["main"])==String ? parse(Float64, data["D0"]["main"]) : convert(Float64, data["D0"]["main"])
+        rmr0 = typeof(data["rmr0"]["main"])==String ? parse(Float64, data["rmr0"]["main"]) : convert(Float64, data["rmr0"]["main"])
     
-        alpha = typeof(payload2run["alpha"]["main"])==String ? parse(Float64, payload2run["alpha"]["main"]) : convert(Float64, payload2run["alpha"]["main"])
-        c0 = typeof(payload2run["c0Value"]["main"])==String ? parse(Float64, payload2run["c0Value"]["main"]) : convert(Float64, payload2run["c0Value"]["main"])
-        c1 = typeof(payload2run["c1Value"]["main"])==String ? parse(Float64, payload2run["c1Value"]["main"]) : convert(Float64, payload2run["c1Value"]["main"])
-        c2 = typeof(payload2run["c2Value"]["main"])==String ? parse(Float64, payload2run["c2Value"]["main"]) : convert(Float64, payload2run["c2Value"]["main"])
-        c3 = typeof(payload2run["c3Value"]["main"])==String ? parse(Float64, payload2run["c3Value"]["main"]) : convert(Float64, payload2run["c3Value"]["main"])
-        eta_q = typeof(payload2run["etaq"]["main"])==String ? parse(Float64, payload2run["etaq"]["main"]) : convert(Float64, payload2run["etaq"]["main"])
-        psi = typeof(payload2run["psi"]["main"])==String ? parse(Float64, payload2run["psi"]["main"]) : convert(Float64, payload2run["psi"]["main"])
-        omega = typeof(payload2run["omega"]["main"])==String ? parse(Float64, payload2run["omega"]["main"]) : convert(Float64, payload2run["omega"]["main"])
-        etrap = typeof(payload2run["etrap"]["main"])==String ? parse(Float64, payload2run["etrap"]["main"]) : convert(Float64, payload2run["etrap"]["main"])
+        alpha = typeof(data["alpha"]["main"])==String ? parse(Float64, data["alpha"]["main"]) : convert(Float64, data["alpha"]["main"])
+        c0 = typeof(data["c0Value"]["main"])==String ? parse(Float64, data["c0Value"]["main"]) : convert(Float64, data["c0Value"]["main"])
+        c1 = typeof(data["c1Value"]["main"])==String ? parse(Float64, data["c1Value"]["main"]) : convert(Float64, data["c1Value"]["main"])
+        c2 = typeof(data["c2Value"]["main"])==String ? parse(Float64, data["c2Value"]["main"]) : convert(Float64, data["c2Value"]["main"])
+        c3 = typeof(data["c3Value"]["main"])==String ? parse(Float64, data["c3Value"]["main"]) : convert(Float64, data["c3Value"]["main"])
+        eta_q = typeof(data["etaq"]["main"])==String ? parse(Float64, data["etaq"]["main"]) : convert(Float64, data["etaq"]["main"])
+        psi = typeof(data["psi"]["main"])==String ? parse(Float64, data["psi"]["main"]) : convert(Float64, data["psi"]["main"])
+        omega = typeof(data["omega"]["main"])==String ? parse(Float64, data["omega"]["main"]) : convert(Float64, data["omega"]["main"])
+        etrap = typeof(data["etrap"]["main"])==String ? parse(Float64, data["etrap"]["main"]) : convert(Float64, data["etrap"]["main"])
 
         (U238_V,U235_V,Th232_V,U238_mol,U235_mol,Th232_mol
             )= conc_to_atoms_per_volume(U238*1e-6,Th232*1e-6)
@@ -235,6 +275,7 @@ function parse_and_run_payload!(queue,payload)
                  7*(U235_mol*exp(43.6*1e6*COAST.sec_in_yrs/COAST.τ35)-U235_mol))
         
         t_val = [1e15]
+        # newton iterations
         for i=1:10
           f0 = (8*(U238_mol*exp(t_val[1]/COAST.τ38)-U238_mol)+
           7*(U235_mol*exp(t_val[1]/COAST.τ35)-U235_mol)) - he_est
@@ -250,12 +291,64 @@ function parse_and_run_payload!(queue,payload)
 
   elseif function_to_COAST=="global_sensitivity"
     samples = payload["samples"]
-    print(typeof(samples))
-    print(length(samples))
+    n_vars2vary = length(samples)
     data = payload["data"]
-    print
-    outstring = "response GSA julia"
-    return outstring
+    n_run = typeof(data["numberX"])==String ? parse(Int64, data["numberX"]) : convert(Int64, data["numberX"])
+    xSeries = data["xSeries"]
+    ySeries = data["ySeries"]
+    xSeries = xSeries.+ 273.15
+    ySeries = ySeries*3.1558e7*1e6
+    lenXSeries = length(xSeries)
+
+    data_to_run = Dict{String, Float64}()
+    data_to_run["Letch"] = typeof(data["Letch"]["main"])==String ? parse(Float64, data["Letch"]["main"]) : convert(Float64, data["Letch"]["main"])
+    data_to_run["U238"] = typeof(data["U238"]["main"])==String ? parse(Float64, data["U238"]["main"]) : convert(Float64, data["U238"]["main"])
+    data_to_run["Th232"] = typeof(data["Th232"]["main"])==String ? parse(Float64, data["Th232"]["main"]) : convert(Float64, data["Th232"]["main"])
+    data_to_run["Ea"] = typeof(data["Ea"]["main"])==String ? parse(Float64, data["Ea"]["main"]) : convert(Float64, data["Ea"]["main"])
+    data_to_run["rad"] = typeof(data["rad"]["main"])==String ? parse(Float64, data["rad"]["main"]) : convert(Float64, data["rad"]["main"])
+    data_to_run["D0"] = typeof(data["D0"]["main"])==String ? parse(Float64, data["D0"]["main"]) : convert(Float64, data["D0"]["main"])
+    data_to_run["rmr0"] = typeof(data["rmr0"]["main"])==String ? parse(Float64, data["rmr0"]["main"]) : convert(Float64, data["rmr0"]["main"])
+    data_to_run["alpha"] = typeof(data["alpha"]["main"])==String ? parse(Float64, data["alpha"]["main"]) : convert(Float64, data["alpha"]["main"])
+    data_to_run["c0Value"] = typeof(data["c0Value"]["main"])==String ? parse(Float64, data["c0Value"]["main"]) : convert(Float64, data["c0Value"]["main"])
+    data_to_run["c1Value"] = typeof(data["c1Value"]["main"])==String ? parse(Float64, data["c1Value"]["main"]) : convert(Float64, data["c1Value"]["main"])
+    data_to_run["c2Value"] = typeof(data["c2Value"]["main"])==String ? parse(Float64, data["c2Value"]["main"]) : convert(Float64, data["c2Value"]["main"])
+    data_to_run["c3Value"] = typeof(data["c3Value"]["main"])==String ? parse(Float64, data["c3Value"]["main"]) : convert(Float64, data["c3Value"]["main"])
+    data_to_run["etaq"] = typeof(data["etaq"]["main"])==String ? parse(Float64, data["etaq"]["main"]) : convert(Float64, data["etaq"]["main"])
+    data_to_run["psi"] = typeof(data["psi"]["main"])==String ? parse(Float64, data["psi"]["main"]) : convert(Float64, data["psi"]["main"])
+    data_to_run["omega"] = typeof(data["omega"]["main"])==String ? parse(Float64, data["omega"]["main"]) : convert(Float64, data["omega"]["main"])
+    data_to_run["etrap"] = typeof(data["etrap"]["main"])==String ? parse(Float64, data["etrap"]["main"]) : convert(Float64, data["etrap"]["main"])
+
+
+    n_iter = 50 
+    date_Ma = zeros(Float64,n_run)
+
+    for i=1:n_run
+      for j=1:n_vars2vary
+        key = payload["key_list"][j]
+        if (key[1:5]=="yData")
+          yData_ind = parse(Int64,key[6])+1 # jscript is zero indexed
+          ySeries[yData_ind] = samples[j][i]
+        elseif (key[1:5]=="xData")
+          xData_ind = parse(Int64,key[6])+1
+          xSeries[xData_ind] = samples[j][i]
+        else
+          data[key] = samples[j][i]
+        end
+      end
+
+      xSeriesRun = Float64[]
+      ySeriesRun = Float64[]
+      for ind in 1:lenXSeries
+        if ind<lenXSeries
+          xSeriesRun = vcat(xSeriesRun,LinRange(xSeries[ind], xSeries[ind+1], 50))
+          ySeriesRun = vcat(ySeriesRun,LinRange(ySeries[ind], ySeries[ind+1], 50))
+        end
+      end
+
+      date_Ma[i] = run_rdaam_dict(n_iter, xSeriesRun, ySeriesRun, data_to_run)
+    end
+    
+    return date_Ma
 
   elseif function_to_COAST=="single_grain"
     Etrap = payload["Etrap"]
@@ -474,6 +567,7 @@ function single_grain(rmr0,c0,c1,c2,c3,alpha,eta_q,L_dist,psi,omega,Etrap,L,u38,
   log10D0L_a2_rdaam = log10(D0L_a2*L^2/L2^2)
   mass_he_t1 = rdaam_forward_diffusion(alpha,c0,c1,c2,c3,rmr0,eta_q,L_dist,psi,omega,Etrap,COAST.Rjoules,E_L,log10D0L_a2_rdaam,n_iter,
                    U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,L,times...,T...)
+    
   outstring = string(mass_he_t1)
   #outstring = "ran successfully"
   return outstring
