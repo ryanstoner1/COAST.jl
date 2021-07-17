@@ -39,8 +39,7 @@ def getPCE():
 
         joint_distribution = chp.J(*expand_list)
         expansion = chp.generate_expansion(5, joint_distribution)
-        samples = joint_distribution.sample(1000, rule="sobol")
-        print(samples.shape)
+        samples = joint_distribution.sample(int(data["numberX"]), rule="sobol")
         response = jsonify([key_list, samples.tolist()])
         response.headers.add("Access-Control-Allow-Origin", "*")
         julia_data = {
@@ -49,10 +48,11 @@ def getPCE():
             "key_list": key_list,
             "data": data,
         }
-
         r = requests.post('http://0.0.0.0:8000/model',json = julia_data)
-        print(r.text)
-
+        try:
+            dates = np.array(json.loads(r.text))
+        except:
+            print(r.text)
         
         return response 
     else:
