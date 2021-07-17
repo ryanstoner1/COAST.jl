@@ -63,10 +63,12 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
             formInit[newKeyString] = {min: value.val[0].y, main: value.val[1].y, max: value.val[2].y}
         });
 
+        formInit["xSeries"] = [...chartRef.current.chart.series[0].xData]
+        formInit["ySeries"] = [...chartRef.current.chart.series[0].yData]
         const formXYPlot = {
                 userIP: undefined,
-                xData: xData,
-                yData: yData,
+                xData: xDataCopy,
+                yData: yDataCopy,
                 xSeries: [...chartRef.current.chart.series[0].xData],
                 ySeries: [...chartRef.current.chart.series[0].yData],
                 checkedList: checkedList,
@@ -134,6 +136,7 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
             }            
         } else {
             const formData = new FormData();
+
             formData.append("param1",JSON.stringify(formInit));   
             const config = {     
                 headers: { 'content-type': 'application/json' }
