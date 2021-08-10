@@ -140,7 +140,20 @@ function parse_and_run_payload!(queue,payload)
     return outstring
   elseif function_to_COAST=="store_params"
     userIP = payload["userIP"]
-    push!(run_list,Dict(userIP=>payload))
+    has_IP = 0
+    for (ind, dict_val) in enumerate(run_list)
+        if haskey(dict_val,userIP)==1
+          has_IP = 1
+          run_list[ind][userIP] = payload
+        end
+    end
+
+    if has_IP==0
+      push!(run_list,Dict(userIP=>payload))
+    end
+          
+
+    
     outstring = "params stored"
     return outstring
   
@@ -158,11 +171,14 @@ function parse_and_run_payload!(queue,payload)
     data = run_list[ind2run[1]][userIP]
     numberX = parse(Int64,data["numberX"])
     numberZ = parse(Int64,data["numberZ"])
+    print(numberX)
     tTchecked = "onlydiffparams"
 
     if length(checkedList)==2
       x = data[checkedList[1]]
       z = data[checkedList[2]]
+      x = Dict{String,Any}("min"=>x["min"],"main"=>x["main"],"max"=>x["max"]) 
+      z = Dict{String,Any}("min"=>z["min"],"main"=>z["main"],"max"=>z["max"]) 
     elseif !(length(xData)>0) & (length(yData)>0) & (length(checkedList)==1)
       x = data[checkedList[1]]
       z = [z["val"] for z in yData if z["check"]==true][1]
@@ -194,7 +210,7 @@ function parse_and_run_payload!(queue,payload)
       z = Dict{String,Any}("min"=>z[1]["z"],"main"=>z[2]["z"],"max"=>z[3]["z"]) 
       tTchecked = "1 x&1 z" 
     end
-    
+
     if typeof(x["min"])==String
       x["max"] = parse(Float64,x["max"])
       x["min"] = parse(Float64,x["min"]) 
@@ -207,17 +223,32 @@ function parse_and_run_payload!(queue,payload)
 
     z["run"] = range(z["min"], stop=z["max"], length=round(Int64,numberZ))
     x["run"] = range(x["min"], stop=x["max"], length=round(Int64,numberX))
+    print(x)
     lenXSeries = length(xSeries)
     lenYSeries = length(ySeries)
 
     n_iter = 50    
 
     t_Ma = zeros((round(Int64,numberX), round(Int64,numberZ)))
+
+    data_new = Dict()
+    for (key, value) in data
+      if (typeof(value)==JSON3.Object{Base.CodeUnits{UInt8, String}, SubArray{UInt64, 1, Vector{UInt64}, Tuple{UnitRange{Int64}}, true}})
+        value_new = Dict{String,Any}()
+        for (nest_key, nest_value) in value
+          value_new[string(nest_key)] = nest_value
+        end
+        value = deepcopy(value_new)
+      end
+      data_new[key] = value
+    end
+    data = deepcopy(data_new)
+
     for (i,xi) in enumerate(x["run"])
         for (j,zi) in enumerate(z["run"])
           if (tTchecked)=="onlydiffparams"
-              data[checkedList[1]]["main"] = xi
-              data[checkedList[2]]["main"] = zi
+              data[checkedList[1]]["main"] = string(xi)
+              data[checkedList[2]]["main"] = string(zi)
           elseif (tTchecked)=="z&diffparam"
               data[checkedList[1]]["main"] = xi
               ySeries[yData[1]["ind"]] = zi
@@ -242,7 +273,7 @@ function parse_and_run_payload!(queue,payload)
             ySeriesRun = vcat(ySeriesRun,LinRange(ySeries[ind], ySeries[ind+1], 50))
           end
         end
-
+        
         L_dist = typeof(data["Letch"]["main"])==String ? parse(Float64, data["Letch"]["main"]) : convert(Float64, data["Letch"]["main"])
         U238 = typeof(data["U238"]["main"])==String ? parse(Float64, data["U238"]["main"]) : convert(Float64, data["U238"]["main"])
         Th232 = typeof(data["Th232"]["main"])==String ? parse(Float64, data["Th232"]["main"]) : convert(Float64, data["Th232"]["main"])
