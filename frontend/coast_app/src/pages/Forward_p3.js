@@ -287,7 +287,6 @@ export default function CoastApp() {
                     setXData( value =>
                         value.map(item => {
                             if (item.ind === pointInd) {
-                                console.log(pointInd)
                                 return {ind: pointInd, val : JSON.parse(JSON.stringify(newDataXBound)), check: item.check, disabled: item.disabled} 
                             } else {
                                 return item 
@@ -299,7 +298,6 @@ export default function CoastApp() {
                     setXData( value =>
                         value.map(item => {
                             if (item.ind === pointInd) {
-                                console.log(pointInd)
                                 return {ind: pointInd, val : JSON.parse(JSON.stringify(newDataXBound)), check: item.check, disabled: item.disabled} 
                             } else {
                                 return item 
