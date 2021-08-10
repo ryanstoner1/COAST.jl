@@ -29,8 +29,8 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     const handleProcess = (e, radioVal) => {
         const formInit = {
             function_to_run: "store_params",
-            numberX: numberX,
-            numberZ: numberZ,
+            numberX: JSON.parse(JSON.stringify(numberX)),
+            numberZ: JSON.parse(JSON.stringify(numberZ)),
             Letch: JSON.parse(JSON.stringify(Letch)),
             U238: U238,
             Th232: Th232,
@@ -92,7 +92,8 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
                 if (warnCheckedBad===false) {
                     axios.get("http://127.0.0.1:5000/get_coast_ip")
                     .then((res) => {
-                        formInit.userIP = res.data.ip;            
+                        formInit.userIP = res.data.ip; 
+                        console.log(formInit)           
                         return axios.post("http://0.0.0.0:8000/model", formInit)                       
                     }).then(res=> {
                         formXYPlot.userIP = formInit.userIP;
@@ -100,16 +101,21 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
                     }).then(res=>{
                         setIsChartXY(true)
                         const dataout = res.data[0]
-                        console.log(dataout)
                         const xout = res.data[1]
-                        console.log(xout)
-                        const dataHighchartsXY = dataout.map(value=>{
-                            return value.map((value_inner,ind)=>{
-                                const returnval = {x:xout[ind], y:value_inner }
-                                return returnval
-                            })
+                        const len_xout = xout.length
+
+                        let dataHighChartsXY = [];
+                        const new_row = [];
+                        dataout.forEach((value,ind) => {
+                            let mod_xout = ind % len_xout                          
+                            new_row.push({x: xout[mod_xout], y: value})
+                            if (mod_xout===(len_xout-1)) {
+                                dataHighChartsXY.push([...new_row])
+                                new_row.length = 0
+                            }
                         })
-                        setDataXY(dataHighchartsXY)
+                        console.log(dataHighChartsXY)
+                        setDataXY(dataHighChartsXY)
                     }).catch(err => console.warn(err));                
                 }
             } else {
