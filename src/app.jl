@@ -170,8 +170,11 @@ function parse_and_run_payload!(queue,payload)
     ind2run = findall(x -> haskey(x,userIP),run_list)
     data = run_list[ind2run[1]][userIP]
     numberX = parse(Int64,data["numberX"])
-    numberZ = parse(Int64,data["numberZ"])
-    print(numberX)
+    if isempty(data["numberZ"])
+      numberZ = 1      
+    else 
+      numberZ = parse(Int64,data["numberZ"])
+    end
     tTchecked = "onlydiffparams"
 
     if length(checkedList)==2
@@ -208,7 +211,23 @@ function parse_and_run_payload!(queue,payload)
       x = Dict{String,Any}("min"=>x[1]["x"],"main"=>x[2]["x"],"max"=>x[3]["x"])  
       z = [z["val"] for z in yData if z["check"]==true][1] 
       z = Dict{String,Any}("min"=>z[1]["z"],"main"=>z[2]["z"],"max"=>z[3]["z"]) 
-      tTchecked = "1 x&1 z" 
+      tTchecked = "1 x&1 z"
+    # cases with only X-Y
+    elseif (length(checkedList)==1) & (length(xData)==0) & (length(yData)==0)
+      x = data[checkedList[1]]
+      x = Dict{String,Any}("min"=>x["min"],"main"=>x["main"],"max"=>x["max"]) 
+      z = Dict{String,Any}("run"=>["val"])
+      tTchecked = "1diffparam"
+    elseif (length(checkedList)==0) & (length(xData)==1) & (length(yData)==0)
+      x = [x["val"] for x in xData if x["check"]==true][1]
+      x = Dict{String,Any}("min"=>x[1]["x"],"main"=>x[2]["x"],"max"=>x[3]["x"]) 
+      z = Dict{String,Any}("run"=>["val"])
+      tTchecked = "1x"
+    elseif (length(checkedList)==0) & (length(xData)==0) & (length(yData)==1)
+      x = [z["val"] for z in yData if z["check"]==true][1] 
+      x = Dict{String,Any}("min"=>z[1]["z"],"main"=>z[2]["z"],"max"=>z[3]["z"]) 
+      z = Dict{String,Any}("run"=>["val"])
+      tTchecked = "1y"
     end
 
     if typeof(x["min"])==String
@@ -216,14 +235,18 @@ function parse_and_run_payload!(queue,payload)
       x["min"] = parse(Float64,x["min"]) 
     end
 
-    if typeof(z["min"])==String
-      z["max"] = parse(Float64,z["max"])
-      z["min"] = parse(Float64,z["min"]) 
+    if haskey(z,"min")
+      if (typeof(z["min"])==String) 
+        z["max"] = parse(Float64,z["max"])
+        z["min"] = parse(Float64,z["min"]) 
+      end
     end
 
-    z["run"] = range(z["min"], stop=z["max"], length=round(Int64,numberZ))
     x["run"] = range(x["min"], stop=x["max"], length=round(Int64,numberX))
-    print(x)
+    if (haskey(z,"min"))
+      z["run"] = range(z["min"], stop=z["max"], length=round(Int64,numberZ))
+    end
+
     lenXSeries = length(xSeries)
     lenYSeries = length(ySeries)
 
@@ -264,6 +287,12 @@ function parse_and_run_payload!(queue,payload)
           elseif (tTchecked)=="1 x&1 z"              
               xSeries[xData[1]["ind"]] = xi
               ySeries[yData[1]["ind"]] = zi
+          elseif (tTchecked)=="1diffparam"
+              data[checkedList[1]]["main"] = xi
+          elseif (tTchecked)=="1x"
+              xSeries[xData[1]["ind"]] = xi
+          elseif (tTchecked)=="1y"
+              ySeries[yData[1]["ind"]] = xi
         end
         xSeriesRun = Float64[]
         ySeriesRun = Float64[]
@@ -273,7 +302,8 @@ function parse_and_run_payload!(queue,payload)
             ySeriesRun = vcat(ySeriesRun,LinRange(ySeries[ind], ySeries[ind+1], 50))
           end
         end
-        
+        print(xSeriesRun)
+        print(ySeriesRun)
         L_dist = typeof(data["Letch"]["main"])==String ? parse(Float64, data["Letch"]["main"]) : convert(Float64, data["Letch"]["main"])
         U238 = typeof(data["U238"]["main"])==String ? parse(Float64, data["U238"]["main"]) : convert(Float64, data["U238"]["main"])
         Th232 = typeof(data["Th232"]["main"])==String ? parse(Float64, data["Th232"]["main"]) : convert(Float64, data["Th232"]["main"])
