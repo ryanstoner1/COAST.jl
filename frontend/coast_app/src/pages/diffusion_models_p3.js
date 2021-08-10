@@ -26,11 +26,11 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     const [etrap, setEtrap] = useState({main: 34, min: '', max: ''})
     // const [juliaResponse, setJuliaResponse] = useState({})
 
-    const handleProcess = (e, radioVal) => {
+    const handleProcess = (e, radioVal, numberXval, numberZval) => {
         const formInit = {
             function_to_run: "store_params",
-            numberX: JSON.parse(JSON.stringify(numberX)),
-            numberZ: JSON.parse(JSON.stringify(numberZ)),
+            numberX: JSON.parse(JSON.stringify(numberXval)),
+            numberZ: JSON.parse(JSON.stringify(numberZval)),
             Letch: JSON.parse(JSON.stringify(Letch)),
             U238: U238,
             Th232: Th232,
@@ -76,15 +76,17 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
         }
 
         if (radioVal==="1") {
-            if (numberX==="") {
+            if (numberXval==="") {
                 setWarnEmpty(true)
-            } else if (Number.isInteger(parseFloat(numberX))===false) {
+            } else if (Number.isInteger(parseFloat(numberXval))===false) {
                 setWarnNonInt(true)
             } else if (checkedList.length>0){
                 const checkedListCopy = [...checkedList];
-                checkedListCopy.forEach(value=>{
+                checkedListCopy.forEach((value, ind)=>{
                     if ((formInit[value].min==="")| (formInit[value].max==="")) {
                         setWarnCheckedBad(true) 
+                    } else if ((ind>0) & (numberZval==="")){
+                        setWarnEmpty(true)
                     } else {
                         setWarnCheckedBad(false) 
                     }
@@ -163,11 +165,11 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
 
     return(
     <div>
-    <Button variant="outline-primary" onClick={e => handleProcess(e,radioValue)}>Start sensitivity analysis</Button>
+    <Button variant="outline-primary" onClick={e => handleProcess(e, radioValue, numberX, numberZ)}>Start sensitivity analysis</Button>
     <br></br>
     <br></br>
-    { warnEmpty ? <Alert variant={"warning"}>COAST  was unable to process data! Set the number of time-temperature (t-T) paths to solve for before processing.</Alert> : null}
-    { warnNonInt ? <Alert variant={"warning"}>COAST was unable to process data! Non-integer input. Set to whole (positive) number before processing.</Alert> : null}
+    { warnEmpty ? <Alert variant={"danger"}>Warning: COAST  was unable to process data! Set the number of time-temperature paths for x axis and, if checked, contour axis. </Alert> : null}
+    { warnNonInt ? <Alert variant={"danger"}>COAST was unable to process data! Non-integer input. Set to whole (positive) number before processing.</Alert> : null}
     <br></br>
     { warnCheckedBad ? <Alert variant={"warning"}>COAST was unable to process data! Enter range of diffusion constant values to checked values before processing. </Alert> : null}
     <br></br>
