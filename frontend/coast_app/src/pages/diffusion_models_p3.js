@@ -144,7 +144,6 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
             }            
         } else {
             const formData = new FormData();
-
             formData.append("param1",JSON.stringify(formInit));   
             const config = {     
                 headers: { 'content-type': 'application/json' }
