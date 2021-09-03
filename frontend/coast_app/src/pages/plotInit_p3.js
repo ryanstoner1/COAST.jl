@@ -1,10 +1,7 @@
 
-const plotInit = (initChartClick, initPointClick, pointDrag) => {
-    const initx1 = 10.0
-    const inity1 = 20.0
-    const initP1 = [{ x: initx1, y: inity1 }];
-    const initXBoundP1 = [{x:initx1-15, y:inity1},{x:initx1, y:inity1},{x:initx1+15, y:inity1}];
-    const initYBoundP1 = [{x:initx1, y:inity1-30},{x:initx1, y:inity1},{x:initx1, y:inity1+30}];
+const plotInit = (initChartClick, initPointClick, pointDrag, initP1, 
+    initXBoundP1, initYBoundP1, chartRef, handleContextMenu, 
+    hideContextMenu, setXData, setYData) => {
     const plotObj = {
             tooltip: { 
                 animation:false,
@@ -75,7 +72,7 @@ const plotInit = (initChartClick, initPointClick, pointDrag) => {
                 animation: false,
                 events: {
                     click: (e) => {
-                        initChartClick(e);
+                        initChartClick(e, chartRef);
                     }
                 }
             },
@@ -92,16 +89,23 @@ const plotInit = (initChartClick, initPointClick, pointDrag) => {
             },
             plotOptions: {
                 series: {
+                    marker: {
+                        states: {
+                            hover: {
+                                enabled: false
+                            }
+                        }
+                    },
                     stickyTracking: false,
                     allowPointSelect: true,
                     connectNulls: false,
                     point: {
                         events: {
                             click: (e) => {
-                                initPointClick(e)
+                                initPointClick(e, chartRef, handleContextMenu, hideContextMenu, setXData, setYData)
                             },
                             drag: (e) => {
-                                pointDrag(e)
+                                pointDrag(e, chartRef, setXData, setYData)
                             },
                         }
                     }
