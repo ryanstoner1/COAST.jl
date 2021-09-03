@@ -23,10 +23,6 @@ function App() {
       <Nav.Link as={NavLink} to="/load" exact>Load</Nav.Link>      
       <NavDropdown title="Sensitivity Analysis" id="collasible-nav-dropdown">
         <NavDropdown.Item as={NavLink} to="/forward">Forward</NavDropdown.Item>
-        <NavDropdown.Item href="#action/3.2">Inverse</NavDropdown.Item>
-        <NavDropdown.Item href="#action/3.3">Something</NavDropdown.Item>
-        <NavDropdown.Divider />
-        <NavDropdown.Item href="#action/3.4">Separated link</NavDropdown.Item>
       </NavDropdown>
     </Nav>
   </Navbar.Collapse>
