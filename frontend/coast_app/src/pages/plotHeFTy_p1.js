@@ -41,6 +41,7 @@ const plotHeFTy = (maxTime, maxTemp, initP1) => {
             },
             plotOptions: {
                 series: {
+                    turboThreshold: 0,
                     stickyTracking: false,
                     allowPointSelect: false,
                     marker: {
