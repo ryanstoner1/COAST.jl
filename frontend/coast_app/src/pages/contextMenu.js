@@ -1,3 +1,5 @@
+// dropdown functionality when alt-clicking point on chart
+// either adds or gets rid of errorbars 
 const timeContextMenu = (e, chartRef, indPoint, maxChecked, xData, setXData) => {
     if (chartRef.current.chart.series[(2*indPoint+1)].visible===false) {
         chartRef.current.chart.series[(2*indPoint+1)].show();
@@ -8,8 +10,6 @@ const timeContextMenu = (e, chartRef, indPoint, maxChecked, xData, setXData) => 
         const xNew = [...chartRef.current.chart.series[(2*indPoint+1)].xData];
         const yNew = [...chartRef.current.chart.series[(2*indPoint+1)].yData];
         const xNewAdd = [{x: xNew[0], y: yNew[0]},{x: xNew[1], y: yNew[1]},{x: xNew[2], y: yNew[2]}];
-        
-
         const maxCheckedCopy = maxChecked;
 
         // errors if empty 
@@ -19,8 +19,6 @@ const timeContextMenu = (e, chartRef, indPoint, maxChecked, xData, setXData) => 
             setXData([...xData,{ind: indPoint, val: [...xNewAdd], check: false, disabled: false}]);
         }
                 
-
-
     } else {
         chartRef.current.chart.series[(2*indPoint+1)].hide();
         setXData(xData => xData.filter(value => value.ind!==(indPoint)));
@@ -56,7 +54,6 @@ const temperatureContextMenu = (e, chartRef, indPoint, maxChecked, yData, setYDa
         chartRef.current.chart.series[(2*indPoint+2)].options.dragDrop = {
             draggableX: false, draggableY: false
         };
-        console.log(yData)
         setYData(yData => yData.filter(value => value.ind!==(indPoint)));
     };
 };
