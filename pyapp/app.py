@@ -18,6 +18,35 @@ def get_coast_ip():
     response.headers.add("Access-Control-Allow-Origin", "*")
     return response
 
+@app.route('/getNBounds', methods=['GET','POST'])
+def getNBounds():
+    print("ran nbounds")
+    if request.method == 'POST':
+        # print("started post")
+        data = request.form.get("npoints")
+        data = json.loads(data)
+        botBound = data["botBound"]
+        topBound = data["topBound"]
+        timeBound = data["timeBound"]
+
+        nPoints = int(data["nPoints"])
+        maxt = max(timeBound)
+        mint = min(timeBound)
+        timeShort = np.linspace(maxt,mint,nPoints)
+        timeBound.reverse()
+        botBound.reverse()
+        topBound.reverse()
+        botShort = np.interp(timeShort,timeBound,botBound)
+        topShort = np.interp(timeShort,timeBound,topBound)
+        response = jsonify({"time": timeShort.tolist(), "bot": botShort.tolist(), "top": topShort.tolist()})
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        return response
+    else: 
+        error_get =  "error in NBounds!"
+        error_get = jsonify(error_get)
+        error_get.headers.add("Access-Control-Allow-Origin", "*")
+    return error_get
+
 @app.route('/getPCE', methods=['GET','POST'])
 def getPCE():
     if request.method == 'POST':
@@ -117,15 +146,15 @@ def parse_hefty_output(text_blob):
                 if ind == default_envelope_line_ind+n_extra_constraints:
                     good_time = np.array(line_split[3:]).astype(float)
                 if ind== default_envelope_line_ind+n_extra_constraints+1:
-                    good_hi = np.array(line_split[4:]).astype(float)
+                    good_hi = np.array(line_split[3:]).astype(float)
                 if ind== default_envelope_line_ind+n_extra_constraints+2:
-                    good_lo = np.array(line_split[4:]).astype(float)
+                    good_lo = np.array(line_split[3:]).astype(float)
                 if ind == default_envelope_line_ind+n_extra_constraints+3:
                     acc_time = np.array(line_split[3:]).astype(float)
                 if ind == default_envelope_line_ind+n_extra_constraints+4:
-                    acc_hi = np.array(line_split[4:]).astype(float)
+                    acc_hi = np.array(line_split[3:]).astype(float)
                 if ind == default_envelope_line_ind+n_extra_constraints+5:
-                    acc_lo = np.array(line_split[4:]).astype(float)
+                    acc_lo = np.array(line_split[3:]).astype(float)
             
             # see if Tt path data coming up next
             if line_split[0]==b'Time (Ma)':
@@ -194,6 +223,12 @@ def parse_hefty_output(text_blob):
                 is_time_Tt = True
 
     hefty_data = {
+        "good_time": good_time.tolist(),
+        "acc_time": acc_time.tolist(),
+        "good_hi": good_hi.tolist(),
+        "good_lo": good_lo.tolist(),
+        "acc_hi": acc_hi.tolist(),
+        "acc_lo": acc_lo.tolist(),
         "good_time_interp": good_time_interp.tolist(),
         "acc_time_interp": acc_time_interp.tolist(),
         "t_Ma": t_Ma.tolist(),
