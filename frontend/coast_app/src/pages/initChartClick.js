@@ -1,5 +1,5 @@
 
-const initChartClick = (e, chartRef, lowX=15, lowY=30, highX=15, highY=30) => {
+const initChartClick = (e, chartRef, lowX=15, lowY=30, highX=15, highY=30, visibleY=false) => {
         const chartLocal = chartRef.current.chart;
 
         chartLocal.series[0].addPoint({ x: e.xAxis[0].value, y: e.yAxis[0].value});
@@ -56,7 +56,7 @@ const initChartClick = (e, chartRef, lowX=15, lowY=30, highX=15, highY=30) => {
         const newSeriesY = {
             type: 'line',
             findNearestPointBy: 'xy',
-            visible: false,
+            visible: visibleY,
             index: idY,
             stickyTracking: false,
             linkedto: 'series-1',

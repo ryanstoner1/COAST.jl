@@ -52,8 +52,8 @@ export default function CoastApp() {
         event => {
           event.preventDefault();
             setIndPoint(event.point.index);
-            setXPos(`${event.point.plotX}px`);
-            setYPos(`${event.point.plotY}px`);
+            setXPos(`${event.clientX}px`);
+            setYPos(`${event.clientY}px`);
             showMenu(true);            
         },
         [showMenu, setXPos, setYPos, setIndPoint]

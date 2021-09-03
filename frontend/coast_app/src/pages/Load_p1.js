@@ -96,9 +96,8 @@ function Load() {
   };
 
   // need to interpolate; usually time bounds have more points than needed
-  const handleSensitivity = (timeBoundAcc, botBoundAcc, topBoundAcc, timeBoundGood, botBoundGood, topBoundGood, nPointsSens, radioValue) => {
-    console.log(timeBoundAcc)
-    console.log(radioValue)
+  const handleSensitivity = (timeBoundAcc, botBoundAcc, topBoundAcc, timeBoundGood, botBoundGood, topBoundGood, nPointsSens, radioValue,chartRefInit) => {
+
     const formData = new FormData();
     const formNPoints = {};
     formNPoints.nPoints = nPointsSens;
@@ -119,26 +118,48 @@ function Load() {
     const config = {     
       headers: { 'content-type': 'application/json' }
     }
-    axios.post("http://127.0.0.1:5000/getNBounds",formData, config).then(res=> {
-                        console.log(res)
-                        const initx1 = 10.0;
-                        const inity1 = 20.0;
-                        const initP1 = [{ x: initx1, y: inity1 }];
-                        const initXBoundP1 = [{x:initx1-15, y:inity1},{x:initx1, y:inity1},{x:initx1+15, y:inity1}];
-                        const initYBoundP1 = [{x:initx1, y:inity1-30},{x:initx1, y:inity1},{x:initx1, y:inity1+30}];
-                        // res.data.bot
-                        const optionsRes = plotInit(initChartClick, initPointClick, pointDrag, initP1, 
-                          initXBoundP1, initYBoundP1, chartRefPlot, handleContextMenu, 
-                          hideContextMenu, setXData, setYData)
-                        setOptionsSens(optionsRes)
-                    }).catch(err => console.warn(err));   
+    axios.post("http://127.0.0.1:5000/getNBounds",formData, config).then(
+      res=> {
+        const initx1 = res.data.time[0];
+        const inity1 = res.data.bot[0]+(res.data.top[0]-res.data.bot[0])/2;
+        const initP1 = [{ x: initx1, y: inity1 }];
+        const initXBoundP1 = [{x:initx1-15, y:inity1},{x:initx1, y:inity1},{x:initx1+15, y:inity1}];
+        const initYBoundP1 = [{x:initx1, y:res.data.bot[0]},{x:initx1, y:inity1},{x:initx1, y:res.data.top[0]}];
+        let maxXAxis = 0;
+        let maxYAxis = 0;
+        const scalingAxes = 1.1;
+        if (chartRefInit.current == null) {
+          maxXAxis = scalingAxes*Math.max(...res.data.time);
+          maxYAxis = scalingAxes*Math.max(...res.data.top);       
+        } else {
+          maxXAxis = chartRefInit.current.chart.xAxis[0].max;
+          maxYAxis = chartRefInit.current.chart.yAxis[0].max;
+        };
+        const errorVisibleX = false;
+        const errorVisibleY = true;
+        // res.data.bot
+        const optionsRes = plotInit(initChartClick, initPointClick, pointDrag, initP1, 
+          initXBoundP1, initYBoundP1, chartRefPlot, handleContextMenu, 
+          hideContextMenu, setXData, setYData, errorVisibleX, errorVisibleY, maxXAxis, maxYAxis)
+        setOptionsSens(optionsRes)
+                  
+        res.data.time.forEach((elem, ind) => {
+          if (ind>0) {
+            const lowX = 15; 
+            const highX = 15;  
+            let clickLoc = {xAxis: [{value: null}],
+            yAxis: [{value: null}]};
+            clickLoc.xAxis[0].value = elem;
+            clickLoc.yAxis[0].value = res.data.bot[ind] + (res.data.top[ind]-res.data.bot[ind])/2;
+            initChartClick(clickLoc, chartRefPlot, lowX, res.data.bot[ind], highX, res.data.top[ind], errorVisibleY);
+          };
+        });
+      }).catch(err => console.warn(err));   
   };
 
+  // Add initial points from HeFTy
   useEffect(() => {
-    console.log(timeBoundAcc)
     if (chartRefInit.current && areManySeries && timeBoundAcc.length && botBoundAcc && topBoundAcc)  {
-      console.log("many series regime")
-      console.log(timeBoundAcc)
       const topBoundAccPlot = timeBoundAcc.map(
         (elem, index) => {
           return {x: elem, y: topBoundAcc[index]}
@@ -162,14 +183,20 @@ function Load() {
       event => {
         event.preventDefault();
           setIndPoint(event.point.index);
-          setXPos(`${event.point.plotX}px`);
-          setYPos(`${event.point.plotY}px`);
+          console.log(event)
+          setXPos(`${event.pageX}px`);
+          setYPos(`${event.pageY}px`);
           showMenu(true);            
       },
       [showMenu, setXPos, setYPos, setIndPoint]
   );
 
-  return (<div>
+  const handleNonchartClick = (e) => {
+    if (!e.altKey) {
+        hideContextMenu();
+    }
+  };
+  return (<div id='testing1' onClick={handleNonchartClick}>
     <br></br>
     <p>Load HeFTy file: </p>
     <div>
@@ -192,16 +219,9 @@ function Load() {
         <DropdownButton id="dropdown-basic-button" title="Processing options">
         <Dropdown.Item href="#/action-1" onClick={() => handlePlot(optionsHeFTy,chartRefInit, topBoundGood,botBoundGood,timeBoundGood, topBoundAcc,botBoundAcc, timeBoundAcc)}>Plot Data</Dropdown.Item>
         <Dropdown.Item href="#/action-2">Subsample Data</Dropdown.Item>
-        <Dropdown.Item onClick={() => handleSensitivity(timeBoundAcc, botBoundAcc, topBoundAcc, timeBoundGood, botBoundGood, topBoundGood, nPointsSens, radioValue)}>Sensitivity Analysis</Dropdown.Item>
+        <Dropdown.Item onClick={() => handleSensitivity(timeBoundAcc, botBoundAcc, topBoundAcc, timeBoundGood, botBoundGood, topBoundGood, nPointsSens, radioValue,chartRefInit)}>Sensitivity Analysis</Dropdown.Item>
         </DropdownButton>
-    </div> : null}
-  { (Object.keys(optionsPlot).length) ?
-  <div>
-    <HighchartsReact
-      highcharts={Highcharts}
-      options={optionsPlot}
-      ref={chartRefInit}
-    />
+
     <InputGroup className="mb-3">
     <InputGroup.Prepend>
     <InputGroup.Text id="inputGroup-d0">Number of time segments for sensitivity analysis?<div>&nbsp;</div><input type="checkbox"   value="c3Value"/></InputGroup.Text>
@@ -210,6 +230,14 @@ function Load() {
     </InputGroup>
     <InputGroup className="mb-3">
     </InputGroup>
+    </div> : null}
+  { (Object.keys(optionsPlot).length) ?
+  <div>
+    <HighchartsReact
+      highcharts={Highcharts}
+      options={optionsPlot}
+      ref={chartRefInit}
+    />
     <br />
       <ButtonGroup className="mb-2">
         {radios.map((radio, idx) => (
