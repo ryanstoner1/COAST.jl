@@ -10,7 +10,7 @@ import Menu from './Menu_p3.js';
 import Diff from './diffusion_models_p3.js';
 import initChartClick from './initChartClick.js';
 import initPointClick from './initPointClick.js';
-import { timeContextMenu, temperatureContextMenu } from './contextMenu.js';
+import { handleTimeSelectMenu, handleTemperatureSelectMenu} from './contextMenu.js';
 import pointDrag from './pointDrag.js';
 import { handleCheckFlowers09} from './handleChecking.js';
 import {XDataCheckList, YDataCheckList} from './XYChecklistSensitivity.js';
@@ -118,7 +118,7 @@ export default function CoastApp() {
             xPos={xPos} yPos={yPos} 
             chartRef={chartRef} indPoint={indPoint} maxChecked={maxChecked} 
             xData={xData} yData={yData} setXData={setXData} setYData={setYData}
-            timeContextMenu={timeContextMenu} temperatureContextMenu={temperatureContextMenu}
+            handleTimeSelectMenu={handleTimeSelectMenu} handleTemperatureSelectMenu={handleTemperatureSelectMenu}
             /> : null }
             </div>
                 <div>
@@ -139,8 +139,7 @@ export default function CoastApp() {
                         name="radio"
                         value={radio.value}
                         checked={radioValue === radio.value}
-                        onChange={(e) => setRadioValue(e.currentTarget.value)}
-                    >
+                        onChange={(e) => setRadioValue(e.currentTarget.value)}>
                         {radio.name}
                     </ToggleButton>
                     ))}
