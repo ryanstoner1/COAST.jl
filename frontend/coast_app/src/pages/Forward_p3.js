@@ -3,16 +3,18 @@ import Highcharts from 'highcharts/highcharts';
 import HighchartsReact from 'highcharts-react-official';
 import addExporting from "highcharts/modules/exporting";
 import moreExporting from "highcharts/modules/export-data";
-import {ButtonGroup, ToggleButton, InputGroup, FormControl, Dropdown, DropdownButton} from 'react-bootstrap';
-import plotInit from './plotInit_p3.js'
-import plotInitXY from './plotInitXY_p3.js'
-import Menu from './Menu_p3.js'
-import Diff from './diffusion_models_p3.js'
+import {ButtonGroup, ToggleButton, Dropdown, DropdownButton} from 'react-bootstrap';
+import plotInit from './plotInit_p3.js';
+import plotInitXY from './plotInitXY_p3.js';
+import Menu from './Menu_p3.js';
+import Diff from './diffusion_models_p3.js';
 import initChartClick from './initChartClick.js';
 import initPointClick from './initPointClick.js';
 import { timeContextMenu, temperatureContextMenu } from './contextMenu.js';
-import pointDrag from './pointDrag.js'
-import { handleCheckFlowers09, handleCheckX, handleCheckY } from './handleChecking.js';
+import pointDrag from './pointDrag.js';
+import { handleCheckFlowers09} from './handleChecking.js';
+import {XDataCheckList, YDataCheckList} from './XYChecklistSensitivity.js';
+
 
 import "./styles.css";
 addExporting(Highcharts);
@@ -69,7 +71,7 @@ export default function CoastApp() {
     // errorbar in x direction does not exist in highcharts therefore using line
     // simpler to add invisible error bar in each case and then only process visible "error bars"
 
-    const initx1 = 10.0;
+    const initx1 = 0.0;
     const inity1 = 20.0;
     const initP1 = [{ x: initx1, y: inity1 }];
     const initXBoundP1 = [{x:initx1-15, y:inity1},{x:initx1, y:inity1},{x:initx1+15, y:inity1}];
@@ -78,77 +80,7 @@ export default function CoastApp() {
         initP1, initXBoundP1, initYBoundP1, chartRef, handleContextMenu, hideContextMenu, setXData, setYData));
     const optionsXY = plotInitXY(dataXY);
     
-    const handleXMin = (e,index,chartRef) => {        
-        if (e.key === "Enter") {
-            setXData(value => value.map((point,ind) => {
-                if (point.ind===index) {
-                    const newPoint = {...point};
-                    newPoint.val[0].x = e.target.valueAsNumber;
-                    const newXData = JSON.parse(JSON.stringify(chartRef.current.chart.series[2*index+1].options.data))
-                    newXData[0].x = e.target.valueAsNumber;
-                    chartRef.current.chart.series[2*index+1].setData(newXData);  
-     
-                    return newPoint
-                } else {
-                    return point
-                }    
-            }));
-        }
-    };
 
-    const handleXMax = (e,index,chartRef) => {        
-        if (e.key === "Enter") {
-            setXData(value => value.map((point,ind) => {
-                if (point.ind===index) {
-                    const newPoint = {...point};
-                    newPoint.val[2].x = e.target.valueAsNumber;
-                    const newXData = JSON.parse(JSON.stringify(chartRef.current.chart.series[2*index+1].options.data))
-                    newXData[2].x = e.target.valueAsNumber;
-                    chartRef.current.chart.series[2*index+1].setData(newXData);  
-     
-                    return newPoint
-                } else {
-                    return point
-                }    
-            }));
-        }
-    };
-
-    const handleYMin = (e,index,chartRef) => {        
-        if (e.key === "Enter") {
-            setYData(value => value.map((point,ind) => {
-                if (point.ind===index) {
-                    const newPoint = {...point};
-                    newPoint.val[0].y = e.target.valueAsNumber;
-                    const newYData = JSON.parse(JSON.stringify(chartRef.current.chart.series[2*index+2].options.data))
-                    newYData[0].y = e.target.valueAsNumber;
-                    chartRef.current.chart.series[2*index+2].setData(newYData);  
-     
-                    return newPoint
-                } else {
-                    return point
-                }    
-            }));
-        }
-    };
-
-    const handleYMax = (e,index,chartRef) => {        
-        if (e.key === "Enter") {
-            setYData(value => value.map((point,ind) => {
-                if (point.ind===index) {
-                    const newPoint = {...point};
-                    newPoint.val[2].y = e.target.valueAsNumber;
-                    const newYData = JSON.parse(JSON.stringify(chartRef.current.chart.series[2*index+2].options.data))
-                    newYData[2].y = e.target.valueAsNumber;
-                    chartRef.current.chart.series[2*index+2].setData(newYData);  
-     
-                    return newPoint
-                } else {
-                    return point
-                }    
-            }));
-        }
-    };
     // Delete points with x key
     useEffect((event) => {
         // delete last point in series with backspace
@@ -162,11 +94,11 @@ export default function CoastApp() {
                 }));
             }        
         };
-    window.addEventListener('keydown', handleKeyDown);
-    // cleanup this component
-    return () => {
-        window.removeEventListener('keydown', handleKeyDown);
-    };
+        window.addEventListener('keydown', handleKeyDown);
+        // cleanup this component
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
     }, [options.series]);
     
     const handleNonchartClick = (e) => {
@@ -228,62 +160,17 @@ export default function CoastApp() {
                     <div>TODO: cherniak, 2000 U-Pb</div>
                 : null}
                 <br></br>
-                </div>
-                
+                </div>                
                 <br></br>
-                { (xData.length) ? 
-                <div>
-                    <br></br>
-                    {xData.map((point, index) => (
-                        <div key={index}>
-                            <InputGroup className="mb-3">
-                            <InputGroup.Prepend>
-                            <InputGroup.Text type="checkbox" >
-                            <div>
-                                varying <i>time</i> at point {index+1} at time {Math.round((point.val[1].x + Number.EPSILON) * 10) / 10} Ma (min/max)
-                            </div>
-                            <div>
-                                &nbsp;
-                            </div>
-                            <input type="checkbox" id="vehicle1" name="vehicle1" disabled={point.disabled} value={[index,"x"]} onChange={(e) => handleCheckX(e,point.ind,point.check,xData,yData,setXData,setYData,checkedList,setMaxChecked)} checked={point.check}/>
-                            </InputGroup.Text>
-                            </InputGroup.Prepend>
-                            <FormControl type="number" placeholder={`min: ${Math.round((point.val[0].x + Number.EPSILON) * 10) / 10}`} onKeyPress={(e) => handleXMin(e,point.ind,chartRef)}/>
-                            <FormControl type="number" placeholder={`max: ${Math.round((point.val[2].x + Number.EPSILON) * 10) / 10}`} onKeyPress={(e) => handleXMax(e,point.ind,chartRef)}/>
-                            </InputGroup>                            
-                        </div>
-                    )
-                    )}
-                </div> : null}
-                { (yData.length) ? 
-                <div>
-                    {yData.map((point, index) => (
-                        <div key={index}>
-                            <InputGroup className="mb-3">
-                            <InputGroup.Prepend>
-                            <InputGroup.Text type="checkbox" >
-                            <div>
-                                varying <i>temperature </i> at point {index+1} at temperature {Math.round((point.val[1].y + Number.EPSILON) * 10) / 10} ºC (min/max)
-                            </div>
-                            <div>
-                                &nbsp;
-                            </div>
-                            <input type="checkbox" id="vehicle1" name="vehicle1" disabled={point.disabled} value={[index,"y"]} onChange={(e) => handleCheckY(e,point.ind,point.check,xData,yData,setXData,setYData,checkedList,setMaxChecked)} checked={point.check}/>
-                            </InputGroup.Text>
-                            </InputGroup.Prepend>
-                            <FormControl type="number" placeholder={`min: ${Math.round((point.val[0].y + Number.EPSILON) * 10) / 10}`} onKeyPress={(e) => handleYMin(e,point.ind,chartRef)}/>
-                            <FormControl type="number" placeholder={`max: ${Math.round((point.val[2].y + Number.EPSILON) * 10) / 10}`} onKeyPress={(e) => handleYMax(e,point.ind,chartRef)}/>
-                            </InputGroup>                            
-                        </div>
-                    )
-                    )}
-                </div> : null}
-                { (isChartXY===true) ? <div>
+                { (xData.length>0) &&
+                <XDataCheckList xData={xData} yData={yData} setXData={setXData} setYData={setYData} checkedList={checkedList} setMaxChecked={setMaxChecked} chartRef={chartRef}/>}
+                { (yData.length>0) &&
+                <YDataCheckList xData={xData} yData={yData} setXData={setXData} setYData={setYData} checkedList={checkedList} setMaxChecked={setMaxChecked} chartRef={chartRef}/>}
+                { (isChartXY===true) &&
                     <HighchartsReact
                         highcharts={Highcharts}
                         options={optionsXY}
-                    />
-                </div> : null}
+                />}
             </div>
         );  
 }
