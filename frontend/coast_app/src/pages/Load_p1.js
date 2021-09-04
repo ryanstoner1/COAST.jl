@@ -9,7 +9,9 @@ import initChartClick from './initChartClick.js';
 import initPointClick from './initPointClick.js';
 import pointDrag from './pointDrag.js'
 import Menu from './Menu_p3.js'
+import Diff from './diffusion_models_p3.js'
 import { timeContextMenu, temperatureContextMenu } from './contextMenu.js';
+import { handleCheckFlowers09, handleCheckX, handleCheckY } from './handleChecking.js';
 require('highcharts/highcharts-more')(Highcharts);
 require("highcharts/modules/draggable-points")(Highcharts);
 
@@ -38,24 +40,30 @@ function Load() {
   const [menu, showMenu] = useState(false);
   const [indPoint, setIndPoint] = useState(null);
 
+  const [checkedList, setCheckedList] = useState([])
+  const [diffusionParams, setDiffusionParams] = useState({model: false});
+  const [isChartXY, setIsChartXY] = useState(false); 
+
+  const initXYx1 = 20
+    const initXYy1 = 30
+    const dataXY1 = [{x:initXYx1, y:initXYy1+15}, {x:initXYx1+50, y:initXYy1+105}, {x:initXYx1+105, y:initXYy1+205}];
+    const dataXY2 = [{x:initXYx1-5, y:initXYy1}, {x:initXYx1, y:initXYy1+10}, {x:initXYx1+15, y:initXYy1+25}];
+    const dataValsXY = [dataXY1, dataXY2]
+    const [dataXY, setDataXY] = useState(dataValsXY)
+
   const radios = [
     { name: 'Acceptable', value: '1' },
     { name: 'Good', value: '2' },
   ];
-
-
+  
   const handleInput = (e) =>{
-    console.log(e.target.files[0])
     const formData = new FormData();
-
     formData.append("file", e.target.files[0]);
     setLoadMessage("Processing data . . . (this may take a minute or two)")   
   axios
     .post("http://127.0.0.1:5000/getfile", formData)
     .then(
-      res => {
-        console.log(res.data)
-        
+      res => {        
         setTopBoundGood(res.data.good_hi)
         setBotBoundGood(res.data.good_lo)
         setTopBoundAcc(res.data.acc_hi)
@@ -196,6 +204,11 @@ function Load() {
         hideContextMenu();
     }
   };
+
+  const handleDiffModel = (e,diffModelType) => {
+    setDiffusionParams({model: diffModelType})
+  };
+
   return (<div id='testing1' onClick={handleNonchartClick}>
     <br></br>
     <p>Load HeFTy file: </p>
@@ -273,6 +286,19 @@ function Load() {
       />
     </div>
 </div> }
+<DropdownButton id="dropdown-p1" title="Add diffusion parameters">
+                    <Dropdown.Item href="#/action-1">U-Pb Ap. (Cherniak, 2000)</Dropdown.Item>
+                    <Dropdown.Item href="#/action-2" onClick={(e) => {handleDiffModel(e,"flowers09")}}>(U-Th)/He Ap. (Flowers et, 2009)</Dropdown.Item>
+</DropdownButton>
+{ (diffusionParams.model==="flowers09") ?
+  <Diff chartRef={chartRefPlot} xData={xData} yData={yData} checkedList={checkedList} maxChecked={maxChecked} onCheckChange={(e)=>handleCheckFlowers09(e,xData,yData,setXData,setYData,setMaxChecked,checkedList, setCheckedList)} 
+      setIsChartXY={setIsChartXY} setDataXY={setDataXY} radioValue={radioValue}
+  />
+: null}
+{ (diffusionParams.model==="cherniak00") ?
+    <div>TODO: cherniak, 2000 U-Pb</div>
+: null}
+
 </div>);
 }
 
