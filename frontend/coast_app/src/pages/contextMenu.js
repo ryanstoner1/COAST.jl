@@ -1,6 +1,6 @@
 // dropdown functionality when alt-clicking point on chart
 // either adds or gets rid of errorbars 
-const timeContextMenu = (e, chartRef, indPoint, maxChecked, xData, setXData) => {
+const handleTimeSelectMenu = (chartRef, indPoint, maxChecked, xData, setXData) => {
     if (chartRef.current.chart.series[(2*indPoint+1)].visible===false) {
         chartRef.current.chart.series[(2*indPoint+1)].show();
         chartRef.current.chart.series[(2*indPoint+1)].options.dragDrop = {
@@ -30,7 +30,7 @@ const timeContextMenu = (e, chartRef, indPoint, maxChecked, xData, setXData) => 
 };
 
 
-const temperatureContextMenu = (e, chartRef, indPoint, maxChecked, yData, setYData) => {
+const handleTemperatureSelectMenu = (chartRef, indPoint, maxChecked, yData, setYData) => {
 
     if (chartRef.current.chart.series[(2*indPoint+2)].visible===false) {
         chartRef.current.chart.series[(2*indPoint+2)].show();
@@ -58,4 +58,4 @@ const temperatureContextMenu = (e, chartRef, indPoint, maxChecked, yData, setYDa
     };
 };
 
-export {timeContextMenu, temperatureContextMenu}
+export { handleTimeSelectMenu, handleTemperatureSelectMenu}
