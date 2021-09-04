@@ -1,5 +1,5 @@
 
-const initChartClick = (e, chartRef, lowX=15, lowY=30, highX=15, highY=30, visibleY=false) => {
+const initChartClick = (e, chartRef, lowX=15, lowY=30, highX=15, highY=30, visibleY=false, draggableY=false) => {
         const chartLocal = chartRef.current.chart;
 
         chartLocal.series[0].addPoint({ x: e.xAxis[0].value, y: e.yAxis[0].value});
@@ -62,7 +62,7 @@ const initChartClick = (e, chartRef, lowX=15, lowY=30, highX=15, highY=30, visib
             linkedto: 'series-1',
             showInLegend: false,
             dragDrop: {
-                draggableY: false,
+                draggableY: draggableY,
                 draggableX: false
             },
             color: "black",
