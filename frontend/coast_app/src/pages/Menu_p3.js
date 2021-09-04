@@ -1,6 +1,7 @@
 import vert from './vert.svg'
 import horiz from './horiz.svg'
 
+// Menu creates menu of to specify whether temperature or time are used for sensitivity analysis 
 const Menu = ({xPos,yPos,
     chartRef,indPoint,maxChecked,
     xData,yData,setXData,setYData,
@@ -9,7 +10,6 @@ const Menu = ({xPos,yPos,
     const xPosNew = parseInt(xPosRaw) + 10;
     const yPosRaw = yPos.slice(0,yPos.length-2);
     const yPosNew = parseInt(yPosRaw) - 3;
-    console.log(yPos)
     return (
       <ul className="menu" style={{ top: yPosNew, left: xPosNew }}>
         <li onClick={(e)=>timeContextMenu(e, chartRef, indPoint, maxChecked, xData, setXData)}>
@@ -27,8 +27,7 @@ const Menu = ({xPos,yPos,
             </div>
         </li>
      </ul>
-    );
-  
+    ); 
 };
 
 export default Menu
