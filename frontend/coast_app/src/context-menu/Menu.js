@@ -8,7 +8,7 @@ import useContextMenu from "./useContextMenu";
  */
 const Menu = ({ outerRef }) => {
   
-  const { xPos, yPos, menu, row } = useContextMenu(outerRef);
+  const { xPos, yPos, menu} = useContextMenu(outerRef);
 
     if (menu) {
     return (
