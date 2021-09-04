@@ -10,8 +10,9 @@ import initPointClick from './initPointClick.js';
 import pointDrag from './pointDrag.js'
 import Menu from './Menu_p3.js'
 import Diff from './diffusion_models_p3.js'
-import { timeContextMenu, temperatureContextMenu } from './contextMenu.js';
-import { handleCheckFlowers09, handleCheckX, handleCheckY } from './handleChecking.js';
+import { handleTimeSelectMenu, handleTemperatureSelectMenu } from './contextMenu.js';
+import { handleCheckFlowers09} from './handleChecking.js';
+import {XDataCheckList, YDataCheckList} from './XYChecklistSensitivity.js';
 require('highcharts/highcharts-more')(Highcharts);
 require("highcharts/modules/draggable-points")(Highcharts);
 
@@ -104,7 +105,7 @@ function Load() {
   };
 
   // need to interpolate; usually time bounds have more points than needed
-  const handleSensitivity = (timeBoundAcc, botBoundAcc, topBoundAcc, timeBoundGood, botBoundGood, topBoundGood, nPointsSens, radioValue,chartRefInit) => {
+  const handleSensitivity = (timeBoundAcc, botBoundAcc, topBoundAcc, timeBoundGood, botBoundGood, topBoundGood, nPointsSens, radioValue,chartRefInit, yData) => {
 
     const formData = new FormData();
     const formNPoints = {};
@@ -135,7 +136,7 @@ function Load() {
         const initYBoundP1 = [{x:initx1, y:res.data.bot[0]},{x:initx1, y:inity1},{x:initx1, y:res.data.top[0]}];
         let maxXAxis = 0;
         let maxYAxis = 0;
-        const scalingAxes = 1.1;
+        const scalingAxes = 1.2;
         if (chartRefInit.current == null) {
           maxXAxis = scalingAxes*Math.max(...res.data.time);
           maxYAxis = scalingAxes*Math.max(...res.data.top);       
@@ -145,25 +146,38 @@ function Load() {
         };
         const errorVisibleX = false;
         const errorVisibleY = true;
+        const draggableY = true;
         // res.data.bot
         const optionsRes = plotInit(initChartClick, initPointClick, pointDrag, initP1, 
           initXBoundP1, initYBoundP1, chartRefPlot, handleContextMenu, 
           hideContextMenu, setXData, setYData, errorVisibleX, errorVisibleY, maxXAxis, maxYAxis)
         setOptionsSens(optionsRes)
-                  
-        res.data.time.forEach((elem, ind) => {
+
+        const yNewArr = []
+        res.data.time.forEach((elem, ind) => {  
           if (ind>0) {
-            const lowX = 15; 
-            const highX = 15;  
+            const lowX = 10; 
+            const highX = 10;  
             let clickLoc = {xAxis: [{value: null}],
             yAxis: [{value: null}]};
             clickLoc.xAxis[0].value = elem;
             clickLoc.yAxis[0].value = res.data.bot[ind] + (res.data.top[ind]-res.data.bot[ind])/2;
-            initChartClick(clickLoc, chartRefPlot, lowX, res.data.bot[ind], highX, res.data.top[ind], errorVisibleY);
+            initChartClick(clickLoc, chartRefPlot, lowX, res.data.bot[ind], highX, res.data.top[ind],errorVisibleY, draggableY);         
           };
+          let xNew = [...chartRefPlot.current.chart.series[2].xData];
+          let yNew = [...chartRefPlot.current.chart.series[2].yData];
+          let yNewAdd = [{x: xNew[0], y: yNew[0]},{x: xNew[1], y: yNew[1]},{x: xNew[2], y: yNew[2]}];
+          yNewArr.push({ind: ind, val: [...yNewAdd], check: false, disabled: false})
+          console.log(yData)
+          setYData([...yNewArr]);
         });
+        console.log(yNewArr)
       }).catch(err => console.warn(err));   
   };
+
+  useEffect( ()=>{
+    console.log(yData)
+  },[yData])
 
   // Add initial points from HeFTy
   useEffect(() => {
@@ -232,7 +246,7 @@ function Load() {
         <DropdownButton id="dropdown-basic-button" title="Processing options">
         <Dropdown.Item href="#/action-1" onClick={() => handlePlot(optionsHeFTy,chartRefInit, topBoundGood,botBoundGood,timeBoundGood, topBoundAcc,botBoundAcc, timeBoundAcc)}>Plot Data</Dropdown.Item>
         <Dropdown.Item href="#/action-2">Subsample Data</Dropdown.Item>
-        <Dropdown.Item onClick={() => handleSensitivity(timeBoundAcc, botBoundAcc, topBoundAcc, timeBoundGood, botBoundGood, topBoundGood, nPointsSens, radioValue,chartRefInit)}>Sensitivity Analysis</Dropdown.Item>
+        <Dropdown.Item onClick={() => handleSensitivity(timeBoundAcc, botBoundAcc, topBoundAcc, timeBoundGood, botBoundGood, topBoundGood, nPointsSens, radioValue,chartRefInit, yData)}>Sensitivity Analysis</Dropdown.Item>
         </DropdownButton>
 
     <InputGroup className="mb-3">
@@ -274,7 +288,7 @@ function Load() {
             xPos={xPos} yPos={yPos} 
             chartRef={chartRefPlot} indPoint={indPoint} maxChecked={maxChecked} 
             xData={xData} yData={yData} setXData={setXData} setYData={setYData}
-            timeContextMenu={timeContextMenu} temperatureContextMenu={temperatureContextMenu}
+            handleTimeSelectMenu ={handleTimeSelectMenu} handleTemperatureSelectMenu={handleTemperatureSelectMenu}
             /> : null }
 {Object.keys(optionsSens).length === 0 ? null: 
 <div>                
@@ -298,7 +312,10 @@ function Load() {
 { (diffusionParams.model==="cherniak00") ?
     <div>TODO: cherniak, 2000 U-Pb</div>
 : null}
-
+{ (xData.length>0) &&
+<XDataCheckList xData={xData} yData={yData} setXData={setXData} setYData={setYData} checkedList={checkedList} setMaxChecked={setMaxChecked} chartRef={chartRefPlot}/>}
+{ (yData.length>0) &&
+<YDataCheckList xData={xData} yData={yData} setXData={setXData} setYData={setYData} checkedList={checkedList} setMaxChecked={setMaxChecked} chartRef={chartRefPlot}/>}
 </div>);
 }
 
