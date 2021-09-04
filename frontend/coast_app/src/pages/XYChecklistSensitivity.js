@@ -34,8 +34,6 @@ const XDataCheckList = ({xData, yData, setXData, setYData, checkedList,setMaxChe
 };
 
 const YDataCheckList = ({xData, yData, setXData, setYData, checkedList,setMaxChecked, chartRef}) => { 
-    console.log(xData) 
-    console.log(yData) 
     return (
         <div>
         { (yData.length) ? 
