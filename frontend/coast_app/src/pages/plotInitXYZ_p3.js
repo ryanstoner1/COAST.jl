@@ -1,5 +1,5 @@
 
-const plotInitXY = (data) => {
+const plotInitXYZ = (dataObj, xlabelXY) => {
 
 
     const plotObj = {
@@ -12,14 +12,31 @@ const plotInitXY = (data) => {
             },
             animation: false,
             xAxis: {
-                title: { text: "x" },
+                title: { text: xlabelXY,          
+                    style: {
+                        fontSize: '20px'
+                    }
+            },
+            labels: {
+                style: {
+                    fontSize: '18px'
+                }
+            }
             },
             yAxis: {
                 gridLineWidth: 0,
-                title: { text: "Date (Ma)" },
+                title: { text: "Date (Ma)",          
+                style: {
+                    fontSize: '20px'
+                }},
+                labels: {
+                    style: {
+                        fontSize: '18px'
+                    }
+                },
             },
             series: 
-                data.map(value=>{
+                dataObj.rawdata.map((value,ind)=>{
                     return {
                         type: 'line',
                         linkedto: 'series-1',
@@ -30,9 +47,10 @@ const plotInitXY = (data) => {
                             draggableX: false
                         },
                         data: value,
+                        name: dataObj.names[ind],
                         marker: {
                             enabled: false
-                        }
+                        },
                     }
                 })
             ,
@@ -45,4 +63,4 @@ const plotInitXY = (data) => {
 };
 
 
-export default plotInitXY
+export default plotInitXYZ
