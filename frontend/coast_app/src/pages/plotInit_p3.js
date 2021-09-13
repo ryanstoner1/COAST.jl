@@ -1,7 +1,7 @@
 
 const plotInit = (initChartClick, initPointClick, pointDrag, initP1, 
     initXBoundP1, initYBoundP1, chartRef, handleContextMenu, 
-    hideContextMenu, setXData, setYData, errorVisibleX=false, errorVisibleY=false, maxTime=400, maxTemp=400) => {
+    hideContextMenu, setXData, setYData, errorVisibleX=false, errorVisibleY=false, maxTime=140, maxTemp=200) => {
     const plotObj = {
             tooltip: { 
                 animation:false,
@@ -12,17 +12,37 @@ const plotInit = (initChartClick, initPointClick, pointDrag, initP1,
             },
             animation: false,
             xAxis: {
-                title: { text: "time (Ma)" },
+                title: { 
+                    text: "time (Ma)",            
+                    style: {
+                        fontSize: '20px'
+                    }
+                },
                 min: 0,
                 max: maxTime,
-                reversed: true
+                reversed: true,
+                labels: {
+                    style: {
+                        fontSize: '18px'
+                    }
+                }
             },
             yAxis: {
                 gridLineWidth: 0,
                 min: 0,
                 max: maxTemp,
-                title: { text: "temperature (ºC)" },
-                reversed: true
+                title: { 
+                    text: "temperature (ºC)",            
+                    style: {
+                        fontSize: '20px'
+                    }
+                },
+                reversed: true,
+                labels: {
+                    style: {
+                        fontSize: '18px'
+                    }
+                }
             },
             series: [
                 {
