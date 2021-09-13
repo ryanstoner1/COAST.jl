@@ -2,7 +2,10 @@ import {React, useState, useEffect} from 'react';
 import {InputGroup, FormControl, Button, Alert} from 'react-bootstrap';
 import axios from 'axios';
 
-const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, setIsChartXY, setDataXY, radioValue} ) => {
+const Diff = ({ chartRef, tData, TData, checkedList, maxChecked, onCheckChange,
+     setIsChartXY, setDataXY, setXlabelXY,
+     setIsChartGSA, setDataGSA, setXlabelGSA,
+      radioValue, diffusionModel}) => {
     const [warnEmpty, setWarnEmpty] = useState(false)
     const [warnNonInt, setWarnNonInt] = useState(false)
     const [warnCheckedBad, setWarnCheckedBad] = useState(false)
@@ -29,8 +32,8 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     const handleProcess = (e, radioVal, numberXval, numberZval) => {
         const formInit = {
             function_to_run: "store_params",
-            numberX: JSON.parse(JSON.stringify(numberXval)),
-            numberZ: JSON.parse(JSON.stringify(numberZval)),
+            numberX: JSON.parse(JSON.stringify(numberXval)), // for XYZ plot
+            numberZ: JSON.parse(JSON.stringify(numberZval)), // for XYZ plot
             Letch: JSON.parse(JSON.stringify(Letch)),
             U238: U238,
             Th232: Th232,
@@ -48,31 +51,35 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
             omega: omega,
             etrap: etrap,
             userIP: undefined,
+            model: diffusionModel,
         };
 
-        const xDataCopy = [...xData];
-        const yDataCopy = [...yData];
-        xDataCopy.forEach((value,ind)=>{
+        const tDataCopy = [...tData];
+        const TDataCopy = [...TData];
+        tDataCopy.forEach((value,ind)=>{
             // makes the processing easier on the python side
-            const newKeyString = "xData".concat(ind.toString())
+            const newKeyString = "tData".concat((value.ind).toString())
             formInit[newKeyString] = {min: value.val[0].x, main: value.val[1].x, max: value.val[2].x}
         });
-        yDataCopy.forEach((value,ind)=>{
+        TDataCopy.forEach((value,ind)=>{
             // makes the processing easier on the python side
-            const newKeyString = "yData".concat(ind.toString())
+            const newKeyString = "TData".concat((value.ind).toString())
             formInit[newKeyString] = {min: value.val[0].y, main: value.val[1].y, max: value.val[2].y}
         });
 
-        formInit["xSeries"] = [...chartRef.current.chart.series[0].xData]
-        formInit["ySeries"] = [...chartRef.current.chart.series[0].yData]
-        const formXYPlot = {
+        formInit["tSeries"] = [...chartRef.current.chart.series[0].xData]
+        console.log(chartRef.current.chart.series[0].xData)
+        console.log(chartRef.current.chart.series[0].yData)
+        formInit["TSeries"] = [...chartRef.current.chart.series[0].yData]
+        const formXYZPlot = {
                 userIP: undefined,
-                xData: xDataCopy,
-                yData: yDataCopy,
-                xSeries: [...chartRef.current.chart.series[0].xData],
-                ySeries: [...chartRef.current.chart.series[0].yData],
+                tData: tDataCopy, // x data from initial plot (i.e. time)
+                TData: TDataCopy, // y data from initial plot (i.e. temperature)
+                tSeries: [...chartRef.current.chart.series[0].xData],
+                TSeries: [...chartRef.current.chart.series[0].yData], // y - on 
                 checkedList: checkedList,
-                function_to_run: "run_xy_flowers09",
+                function_to_run: "xy",
+                model: diffusionModel,
         }
 
         if (radioVal==="1") {
@@ -94,26 +101,41 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
                 if (warnCheckedBad===false) {
                     axios.get("http://127.0.0.1:5000/get_coast_ip")
                     .then((res) => {
-                        formInit.userIP = res.data.ip; 
-                        console.log(formInit)           
+                        formInit.userIP = res.data.ip;          
                         return axios.post("http://0.0.0.0:8000/model", formInit)                       
                     }).then(res=> {
-                        formXYPlot.userIP = formInit.userIP;
-                        return axios.post("http://0.0.0.0:8000/model", formXYPlot)           
+                        formXYZPlot.userIP = formInit.userIP;
+                        return axios.post("http://0.0.0.0:8000/model", formXYZPlot)           
                     }).then(res=>{
                         setIsChartXY(true)
+                        
                         const dataout = res.data[0]
                         const xout = res.data[1]
                         const len_xout = xout.length
 
-                        let dataHighChartsXY = [];
+                        let dataHighChartsXY = {
+                            rawdata: [],
+                            names: [],
+                        };
+                        if (res.data.length>3) {
+                            setXlabelXY(res.data[3][0])
+                            const zout = res.data[2]
+                            console.log(zout)
+                            zout.forEach((value,ind)=>{
+                                if (res.data.length>2) {
+                                dataHighChartsXY.names.push(String(zout[ind].toPrecision(3)))
+                            }
+                            });
+                        } else {
+                            setXlabelXY(res.data[2][0])
+                        };
                         const new_row = [];
                         dataout.forEach((value,ind) => {
                             let mod_xout = ind % len_xout                          
                             new_row.push({x: xout[mod_xout], y: value})
                             if (mod_xout===(len_xout-1)) {
-                                dataHighChartsXY.push([...new_row])
-                                new_row.length = 0
+                                dataHighChartsXY.rawdata.push([...new_row])
+                                new_row.length = 0 // reset to empty array
                             }
                         })
                         console.log(dataHighChartsXY)
@@ -126,20 +148,44 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
                     formInit.userIP = res.data.ip;            
                     return axios.post("http://0.0.0.0:8000/model", formInit)                       
                 }).then(res=> {
-                    formXYPlot.userIP = formInit.userIP;
-                    return axios.post("http://0.0.0.0:8000/model", formXYPlot)           
+                    formXYZPlot.userIP = formInit.userIP;
+                    return axios.post("http://0.0.0.0:8000/model", formXYZPlot)           
                 }).then(res=>{
+
                     setIsChartXY(true)
-                    console.log(res.data)
                     
-                    const dataHighchartsXY = res.data.map(value=>{
-                        return value.map((value_inner,ind)=>{
-                            const returnval = {x:chartRef.current.chart.series[0].xData[ind], y:value_inner }
-                            console.log(returnval)
-                            return returnval
-                        })
+                    const dataout = res.data[0]
+                    const xout = res.data[1]
+                    const len_xout = xout.length
+
+                    let dataHighChartsXY = {
+                        rawdata: [],
+                        names: [],
+                    };
+                    if (res.data.length>3) {
+                        setXlabelXY(res.data[3][0])
+                        const zout = res.data[2]
+                        console.log(zout)
+                        zout.forEach((value,ind)=>{
+                            if (res.data.length>2) {
+                            dataHighChartsXY.names.push(String(zout[ind].toPrecision(2)))
+                        }
+                        });
+                    } else {
+                        setXlabelXY(res.data[2][0])
+                    };
+                    const new_row = [];
+                    dataout.forEach((value,ind) => {
+                        let mod_xout = ind % len_xout                          
+                        new_row.push({x: xout[mod_xout], y: value})
+                        if (mod_xout===(len_xout-1)) {
+                            dataHighChartsXY.rawdata.push([...new_row])
+                            new_row.length = 0 // reset to empty array
+                        }
                     })
-                    setDataXY(dataHighchartsXY)
+                    console.log(dataHighChartsXY)
+                    setDataXY(dataHighChartsXY)
+                    
                 }).catch(err => console.warn(err));
             }            
         } else {
@@ -150,7 +196,25 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
             }
             axios
             .post("http://127.0.0.1:5000/getPCE", formData, config)
-            .then(res => console.log(res))
+            .then(res => {
+                setIsChartGSA(true)
+                const categories = res.data.pop();
+                // setXlabelGSA(checkedList[0])
+                let dataHighchartsGSA = {
+                    order1: res.data[0],
+                    order_total: res.data[1],
+                    categories: categories,
+                };
+                console.log(dataHighchartsGSA)
+                setDataGSA(dataHighchartsGSA)
+                // res.data.forEach((value,ind) => {
+                //     dataHighChartsGSA.push()
+
+                // })
+                
+
+
+                console.log(res)})
             .catch(err => console.warn(err))
         }
         };
@@ -183,7 +247,7 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     <h5>Diffusion parameters</h5>
     <InputGroup className="mb-3">
         <InputGroup.Prepend>
-        <InputGroup.Text id="inputGroup-ea">U<sub>238 </sub><div>&nbsp;</div><input type="checkbox"   value="U238" disabled={maxChecked ? !(checkedList.includes("U238")) : false} onChange={(e) => onCheckChange(e,xData,yData,checkedList)}/></InputGroup.Text>
+        <InputGroup.Text id="inputGroup-ea">U<sub>238 </sub><div>&nbsp;</div><input type="checkbox"   value="U238" disabled={maxChecked ? !(checkedList.includes("U238")) : false} onChange={(e) => onCheckChange(e,tData,TData,checkedList)}/></InputGroup.Text>
         </InputGroup.Prepend>
         <FormControl aria-label="Text input with checkbox" placeholder="ppm" type="number" value={U238.main} onInput={e => setU238({...U238,main: e.target.value})}/>
         <FormControl aria-label="Text input with checkbox" placeholder="min" type="number" value={U238.min} onInput={e => setU238({...U238,min: e.target.value})}/>
@@ -191,7 +255,7 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     </InputGroup>
     <InputGroup className="mb-3">
         <InputGroup.Prepend>
-        <InputGroup.Text id="inputGroup-r">Th<sub>232 </sub><div>&nbsp;</div><input type="checkbox"   value="Th232" disabled={maxChecked ? !(checkedList.includes("Th232")) : false} onChange={(e) => onCheckChange(e,xData,yData,checkedList)}/></InputGroup.Text>
+        <InputGroup.Text id="inputGroup-r">Th<sub>232 </sub><div>&nbsp;</div><input type="checkbox"   value="Th232" disabled={maxChecked ? !(checkedList.includes("Th232")) : false} onChange={(e) => onCheckChange(e,tData,TData,checkedList)}/></InputGroup.Text>
         </InputGroup.Prepend>
         <FormControl aria-label="Text input with checkbox" placeholder="ppm" value={Th232.main} onInput={e => setTh232({...Th232,main: e.target.value})}/>
         <FormControl aria-label="Text input with checkbox"  placeholder="min" type="number" value={Th232.min} onInput={e => setTh232({...Th232,min: e.target.value})}/>
@@ -199,7 +263,7 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     </InputGroup>
     <InputGroup className="mb-3">
         <InputGroup.Prepend>
-        <InputGroup.Text id="inputGroup-ea">E<sub>a </sub><div>&nbsp;</div><input type="checkbox"   value="Ea" disabled={maxChecked ? !(checkedList.includes("Ea")) : false} onChange={(e) => onCheckChange(e,xData,yData,checkedList)}/></InputGroup.Text>
+        <InputGroup.Text id="inputGroup-ea">E<sub>a </sub><div>&nbsp;</div><input type="checkbox"   value="Ea" disabled={maxChecked ? !(checkedList.includes("Ea")) : false} onChange={(e) => onCheckChange(e,tData,TData,checkedList)}/></InputGroup.Text>
         </InputGroup.Prepend>
         <FormControl aria-label="Text input with checkbox" placeholder="kJ" value={Ea.main} onInput={e => setEa({...Ea,main: e.target.value})}/>
         <FormControl aria-label="Text input with checkbox" placeholder="min" type="number" value={Ea.min} onInput={e => setEa({...Ea,min: e.target.value})}/>
@@ -207,7 +271,7 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     </InputGroup>
     <InputGroup className="mb-3">
         <InputGroup.Prepend>
-        <InputGroup.Text id="inputGroup-r">rad<div>&nbsp;</div><input type="checkbox"   value="rad" disabled={maxChecked ? !(checkedList.includes("rad")) : false} onChange={(e) => onCheckChange(e,xData,yData,checkedList)}/></InputGroup.Text>
+        <InputGroup.Text id="inputGroup-r">rad<div>&nbsp;</div><input type="checkbox"   value="rad" disabled={maxChecked ? !(checkedList.includes("rad")) : false} onChange={(e) => onCheckChange(e,tData,TData,checkedList)}/></InputGroup.Text>
         </InputGroup.Prepend>
         <FormControl aria-label="Text input with checkbox"  value={rad.main} onInput={e => setRad({...rad,main: e.target.value})}/>
         <FormControl aria-label="Text input with checkbox" placeholder="min" type="number" value={rad.min} onInput={e => setRad({...rad,min: e.target.value})}/>
@@ -215,7 +279,7 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     </InputGroup>
     <InputGroup className="mb-3">
         <InputGroup.Prepend>
-        <InputGroup.Text id="inputGroup-d0">D<sub>0 </sub><div>&nbsp;</div><input type="checkbox"   value="D0" disabled={maxChecked ? !(checkedList.includes("D0")) : false} onChange={(e) => onCheckChange(e,xData,yData,checkedList)}/></InputGroup.Text>
+        <InputGroup.Text id="inputGroup-d0">D<sub>0 </sub><div>&nbsp;</div><input type="checkbox"   value="D0" disabled={maxChecked ? !(checkedList.includes("D0")) : false} onChange={(e) => onCheckChange(e,tData,TData,checkedList)}/></InputGroup.Text>
         </InputGroup.Prepend>
         <FormControl aria-label="Text input with checkbox"  value={D0.main} onInput={e => setD0({...D0,main: e.target.value})}/>
         <FormControl aria-label="Text input with checkbox" placeholder="min" type="number" value={D0.min} onInput={e => setD0({...D0,min: e.target.value})}/>
@@ -224,7 +288,7 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     <h5>Radiation damage parameters</h5>
     <InputGroup className="mb-3">
         <InputGroup.Prepend>
-        <InputGroup.Text id="inputGroup-d0">rmr<sub>0</sub><div>&nbsp;</div><input type="checkbox"   value="rmr0" disabled={maxChecked ? !(checkedList.includes("rmr0")) : false} onChange={(e) => onCheckChange(e,xData,yData,checkedList)}/></InputGroup.Text>
+        <InputGroup.Text id="inputGroup-d0">rmr<sub>0</sub><div>&nbsp;</div><input type="checkbox"   value="rmr0" disabled={maxChecked ? !(checkedList.includes("rmr0")) : false} onChange={(e) => onCheckChange(e,tData,TData,checkedList)}/></InputGroup.Text>
         </InputGroup.Prepend>
         <FormControl aria-label="Text input with checkbox" value={rmr0.main} onInput={e => setRmr0({...rmr0,main: e.target.value})}/>
         <FormControl aria-label="Text input with checkbox" placeholder="min" type="number" value={rmr0.min} onInput={e => setRmr0({...rmr0,min: e.target.value})}/>
@@ -232,7 +296,7 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     </InputGroup>
     <InputGroup className="mb-3">
         <InputGroup.Prepend>
-        <InputGroup.Text id="inputGroup-d0">E<sub>trap</sub><div>&nbsp;</div><input type="checkbox"   value="etrap" disabled={maxChecked ? !(checkedList.includes("etrap")) : false} onChange={(e) => onCheckChange(e,xData,yData,checkedList)}/></InputGroup.Text>
+        <InputGroup.Text id="inputGroup-d0">E<sub>trap</sub><div>&nbsp;</div><input type="checkbox"   value="etrap" disabled={maxChecked ? !(checkedList.includes("etrap")) : false} onChange={(e) => onCheckChange(e,tData,TData,checkedList)}/></InputGroup.Text>
         </InputGroup.Prepend>
         <FormControl aria-label="Text input with checkbox" value={etrap.main} onInput={e => setEtrap({...etrap,main: e.target.value})}/>
         <FormControl aria-label="Text input with checkbox" placeholder="min" type="number" value={etrap.min} onInput={e => setEtrap({...etrap,min: e.target.value})}/>
@@ -240,7 +304,7 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     </InputGroup>
     <InputGroup className="mb-3">
         <InputGroup.Prepend>
-        <InputGroup.Text id="inputGroup-d0">&#945;<div>&nbsp;</div><input type="checkbox"   value="alpha" disabled={maxChecked ? !(checkedList.includes("alpha")) : false} onChange={(e) => onCheckChange(e,xData,yData,checkedList)}/></InputGroup.Text>
+        <InputGroup.Text id="inputGroup-d0">&#945;<div>&nbsp;</div><input type="checkbox"   value="alpha" disabled={maxChecked ? !(checkedList.includes("alpha")) : false} onChange={(e) => onCheckChange(e,tData,TData,checkedList)}/></InputGroup.Text>
         </InputGroup.Prepend>
         <FormControl aria-label="Text input with checkbox" value={alpha.main} onInput={e => setAlpha({...alpha,main: e.target.value})}/>
         <FormControl aria-label="Text input with checkbox" placeholder="min" type="number" value={alpha.min} onInput={e => setAlpha({...alpha,min: e.target.value})}/>
@@ -248,7 +312,7 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     </InputGroup>
     <InputGroup className="mb-3">
         <InputGroup.Prepend>
-        <InputGroup.Text id="inputGroup-d0">c<sub>0</sub><div>&nbsp;</div><input type="checkbox"   value="c0Value" disabled={maxChecked ? !(checkedList.includes("c0Value")) : false} onChange={(e) => onCheckChange(e,xData,yData,checkedList)}/></InputGroup.Text>
+        <InputGroup.Text id="inputGroup-d0">c<sub>0</sub><div>&nbsp;</div><input type="checkbox"   value="c0Value" disabled={maxChecked ? !(checkedList.includes("c0Value")) : false} onChange={(e) => onCheckChange(e,tData,TData,checkedList)}/></InputGroup.Text>
         </InputGroup.Prepend>
         <FormControl aria-label="Text input with checkbox" value={c0Value.main} onInput={e => setC0Value({...c0Value,main: e.target.value})}/>
         <FormControl aria-label="Text input with checkbox" placeholder="min" type="number" value={c0Value.min} onInput={e => setC0Value({...c0Value,min: e.target.value})}/>
@@ -256,7 +320,7 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     </InputGroup>
     <InputGroup className="mb-3">
         <InputGroup.Prepend>
-        <InputGroup.Text id="inputGroup-d0">c<sub>1</sub><div>&nbsp;</div><input type="checkbox"   value="c1Value" disabled={maxChecked ? !(checkedList.includes("c1Value")) : false} onChange={(e) => onCheckChange(e,xData,yData,checkedList)}/></InputGroup.Text>
+        <InputGroup.Text id="inputGroup-d0">c<sub>1</sub><div>&nbsp;</div><input type="checkbox"   value="c1Value" disabled={maxChecked ? !(checkedList.includes("c1Value")) : false} onChange={(e) => onCheckChange(e,tData,TData,checkedList)}/></InputGroup.Text>
         </InputGroup.Prepend>
         <FormControl aria-label="Text input with checkbox" value={c1Value.main} onInput={e => setC1Value({...c1Value,main: e.target.value})}/>
         <FormControl aria-label="Text input with checkbox" placeholder="min" type="number" value={c1Value.min} onInput={e => setC1Value({...c1Value,min: e.target.value})}/>
@@ -264,7 +328,7 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     </InputGroup>
     <InputGroup className="mb-3">
         <InputGroup.Prepend>
-        <InputGroup.Text id="inputGroup-d0">c<sub>2</sub><div>&nbsp;</div><input type="checkbox"   value="c2Value" disabled={maxChecked ? !(checkedList.includes("c2Value")) : false} onChange={(e) => onCheckChange(e,xData,yData,checkedList)}/></InputGroup.Text>
+        <InputGroup.Text id="inputGroup-d0">c<sub>2</sub><div>&nbsp;</div><input type="checkbox"   value="c2Value" disabled={maxChecked ? !(checkedList.includes("c2Value")) : false} onChange={(e) => onCheckChange(e,tData,TData,checkedList)}/></InputGroup.Text>
         </InputGroup.Prepend>
         <FormControl aria-label="Text input with checkbox" value={c2Value.main} onInput={e => setC2Value({...c2Value,main: e.target.value})}/>
         <FormControl aria-label="Text input with checkbox" placeholder="min" type="number" value={c2Value.min} onInput={e => setC2Value({...c2Value,min: e.target.value})}/>
@@ -272,7 +336,7 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     </InputGroup>
     <InputGroup className="mb-3">
         <InputGroup.Prepend>
-        <InputGroup.Text id="inputGroup-d0">c<sub>3</sub><div>&nbsp;</div><input type="checkbox"   value="c3Value" disabled={maxChecked ? !(checkedList.includes("c3Value")) : false} onChange={(e) => onCheckChange(e,xData,yData,checkedList)}/></InputGroup.Text>
+        <InputGroup.Text id="inputGroup-d0">c<sub>3</sub><div>&nbsp;</div><input type="checkbox"   value="c3Value" disabled={maxChecked ? !(checkedList.includes("c3Value")) : false} onChange={(e) => onCheckChange(e,tData,TData,checkedList)}/></InputGroup.Text>
         </InputGroup.Prepend>
         <FormControl aria-label="Text input with checkbox" value={c3Value.main} onInput={e => setC3Value({...c3Value,main: e.target.value})}/>
         <FormControl aria-label="Text input with checkbox" placeholder="min" type="number" value={c3Value.min} onInput={e => setC3Value({...c3Value,min: e.target.value})}/>
@@ -280,7 +344,7 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     </InputGroup>
     <InputGroup className="mb-3">
         <InputGroup.Prepend>
-        <InputGroup.Text id="inputGroup-letch">L<sub>etch</sub><div>&nbsp;</div><input type="checkbox"   value="Letch" disabled={maxChecked ? !(checkedList.includes("Letch")) : false} onChange={(e) => onCheckChange(e,xData,yData,checkedList)}/></InputGroup.Text>
+        <InputGroup.Text id="inputGroup-letch">L<sub>etch</sub><div>&nbsp;</div><input type="checkbox"   value="Letch" disabled={maxChecked ? !(checkedList.includes("Letch")) : false} onChange={(e) => onCheckChange(e,tData,TData,checkedList)}/></InputGroup.Text>
         </InputGroup.Prepend>
         <FormControl aria-label="Text input with checkbox" value={Letch.main} onInput={e => setLetch({...Letch,main: e.target.value})}/>
         <FormControl aria-label="Text input with checkbox" placeholder="min" type="number" value={Letch.min} onInput={e => setLetch({...Letch,min: e.target.value})}/>
@@ -288,7 +352,7 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     </InputGroup>
     <InputGroup className="mb-3">
         <InputGroup.Prepend>
-        <InputGroup.Text id="inputGroup-d0">&#951;q<div>&nbsp;</div><input type="checkbox"   value="etaq" disabled={maxChecked ? !(checkedList.includes("etaq")) : false} onChange={(e) => onCheckChange(e,xData,yData,checkedList)}/></InputGroup.Text>
+        <InputGroup.Text id="inputGroup-d0">&#951;q<div>&nbsp;</div><input type="checkbox"   value="etaq" disabled={maxChecked ? !(checkedList.includes("etaq")) : false} onChange={(e) => onCheckChange(e,tData,TData,checkedList)}/></InputGroup.Text>
         </InputGroup.Prepend>
         <FormControl aria-label="Text input with checkbox" value={etaq.main} onInput={e => setEtaq({...etaq,main: e.target.value})}/>
         <FormControl aria-label="Text input with checkbox" placeholder="min" type="number" value={etaq.min} onInput={e => setEtaq({...etaq,min: e.target.value})}/>
@@ -296,7 +360,7 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     </InputGroup>
     <InputGroup className="mb-3"> 
         <InputGroup.Prepend>
-        <InputGroup.Text id="inputGroup-d0">&#936;<div>&nbsp;</div><input type="checkbox"   value="psi" disabled={maxChecked ? !(checkedList.includes("psi")) : false} onChange={(e) => onCheckChange(e,xData,yData,checkedList)}/></InputGroup.Text>
+        <InputGroup.Text id="inputGroup-d0">&#936;<div>&nbsp;</div><input type="checkbox"   value="psi" disabled={maxChecked ? !(checkedList.includes("psi")) : false} onChange={(e) => onCheckChange(e,tData,TData,checkedList)}/></InputGroup.Text>
         </InputGroup.Prepend>
         <FormControl aria-label="Text input with checkbox" value={psi.main} onInput={e => setPsi({...psi,main: e.target.value})}/>
         <FormControl aria-label="Text input with checkbox" placeholder="min" type="number" value={psi.min} onInput={e => setPsi({...psi,min: e.target.value})}/>
@@ -304,7 +368,7 @@ const Diff = ({ chartRef, xData, yData, checkedList, maxChecked, onCheckChange, 
     </InputGroup>
     <InputGroup className="mb-3">
         <InputGroup.Prepend>
-        <InputGroup.Text id="inputGroup-d0">&#937;<div>&nbsp;</div><input type="checkbox"   value="omega" disabled={maxChecked ? !(checkedList.includes("omega")) : false} onChange={(e) => onCheckChange(e,xData,yData,checkedList)}/></InputGroup.Text>
+        <InputGroup.Text id="inputGroup-d0">&#937;<div>&nbsp;</div><input type="checkbox"   value="omega" disabled={maxChecked ? !(checkedList.includes("omega")) : false} onChange={(e) => onCheckChange(e,tData,TData,checkedList)}/></InputGroup.Text>
         </InputGroup.Prepend>
         <FormControl aria-label="Text input with checkbox" value={omega.main} onInput={e => setOmega({...omega,main: e.target.value})}/>
         <FormControl aria-label="Text input with checkbox" placeholder="min" type="number" value={omega.min} onInput={e => setOmega({...omega,min: e.target.value})}/>
