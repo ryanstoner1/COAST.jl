@@ -26,15 +26,15 @@ find concentration in units appropriate for RDAAM
 """
 ## preprocess
 function conc_to_atoms_per_volume(U,Th232;density=3.20,U38_35_ratio=137.88)
-    U238=U*U38_35_ratio/(U38_35_ratio*(atomic_mass_U238/atomic_mass_U235)+1)
-    U235=U*1.0/(U38_35_ratio*(atomic_mass_U238/atomic_mass_U235)+1)
 
+    U238_mol = U/(atomic_mass_U238+(1.0/U38_35_ratio)*atomic_mass_U235)
+    U235_mol = U/(atomic_mass_U238*U38_35_ratio+atomic_mass_U235)
 
-    U235_mol = U235/atomic_mass_U235 # mol/g
+    #U235_mol = U235/atomic_mass_U235 # mol/g
     U235_atoms_per_g = U235_mol*Na # atoms/g
     U235_V = U235_atoms_per_g*density # atoms/cm^3
 
-    U238_mol = U238/atomic_mass_U238 # mol/g
+    #U238_mol = U238/atomic_mass_U238 # mol/g
     U238_atoms_per_g = U238_mol*Na # atoms/g
     U238_V = U238_atoms_per_g*density # atoms/cm^3
 
