@@ -13,7 +13,7 @@ using Genie.Renderer.Html
 include("test_app_running.jl")
 export launchServer
 
-function run_rdaam_dict(n_iter, xSeriesRun, ySeriesRun, data)
+function run_rdaam_dict(n_iter, TSeriesRun, tSeriesRun, data)
   L_dist = data["Letch"]
   U238 = data["U238"]
   Th232 = data["Th232"]
@@ -38,7 +38,7 @@ function run_rdaam_dict(n_iter, xSeriesRun, ySeriesRun, data)
   log10D0L_a2_rdaam = log10(exp(D0)*data["rad"]^2/L2^2)
   
   he_est = COAST.rdaam_forward_diffusion(alpha,c0Value,c1Value,c2Value,c3Value,rmr0,eta_q,L_dist*1e-4,psi,omega,etrap*1e3,COAST.Rjoules,Ea*1e3,log10D0L_a2_rdaam,n_iter,
-     U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,rad*1e-6,reverse(ySeriesRun)...,reverse(xSeriesRun[1:end-1])...)
+     U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,rad*1e-6,reverse(tSeriesRun)...,reverse(TSeriesRun[1:end-1])...)
   # initial guess
   t_val = [1e15]
   for i=1:10
@@ -157,79 +157,132 @@ function parse_and_run_payload!(queue,payload)
     outstring = "params stored"
     return outstring
   
-  elseif function_to_COAST=="run_xy_flowers09"
-    xData = payload["xData"]
-    yData = payload["yData"]
-    xSeries = payload["xSeries"]
-    ySeries = payload["ySeries"]
-    xSeries = xSeries.+ 273.15
-    ySeries = ySeries*3.1558e7*1e6
-    checkedList = payload["checkedList"]
-    userIP = payload["userIP"]
+  ####
+  # LOCAL SENSITIVITY/ X-Y-(Z) plot
+  # NO ZONATION
+  elseif function_to_COAST=="xy"
+    # grab data
+    tVaried = payload["tData"] # data points that user chooses to vary tT
+    TVaried = payload["TData"]
+    checkedList = payload["checkedList"]  
+    diffusion_model = payload["model"]
 
+    # convert to correct units
+    sec_in_Ma = 3.1558e13
+    c_to_kelvin = 273.15
+    tSeries = payload["tSeries"]  # all base tT data points wout variation of tT
+    TSeries = payload["TSeries"]
+    tSeries = tSeries*sec_in_Ma
+    TSeries = TSeries.+c_to_kelvin
+
+    # deal with concurrent users by storing their data separately and accessing here
+    userIP = payload["userIP"]
     ind2run = findall(x -> haskey(x,userIP),run_list)
     data = run_list[ind2run[1]][userIP]
+    data=JSON3dict_to_dict(data) # necessary
+
+    # get number datapoints X-Y-(Z)
     numberX = parse(Int64,data["numberX"])
     if isempty(data["numberZ"])
       numberZ = 1      
     else 
       numberZ = parse(Int64,data["numberZ"])
     end
-    tTchecked = "onlydiffparams"
+    
+    # CHECK if time or temperature are varied or constant
+    names_out = [] # to return to user for plotting
+    t_var = [] # time array to (potentially) fill
+    T_var = [] # temperature array to (potentially) fill
+    t_ind = [] # time point index array to (potentially) fill
+    T_ind = [] # temperature point index array to (potentially) fill
 
-    if length(checkedList)==2
-      x = data[checkedList[1]]
-      z = data[checkedList[2]]
-      x = Dict{String,Any}("min"=>x["min"],"main"=>x["main"],"max"=>x["max"]) 
-      z = Dict{String,Any}("min"=>z["min"],"main"=>z["main"],"max"=>z["max"]) 
-    elseif !(length(xData)>0) & (length(yData)>0) & (length(checkedList)==1)
-      x = data[checkedList[1]]
-      z = [z["val"] for z in yData if z["check"]==true][1]
-      z = Dict{String,Any}("min"=>z[1]["z"],"main"=>z[2]["z"],"max"=>z[3]["z"]) 
-      tTchecked = "z&diffparam"
-    elseif (length(xData)>0) & !(length(yData)>0) & length(checkedList)==1
-      x = [x["val"] for x in xData if x["check"]==true][1]
-      x = Dict{String,Any}("min"=>x[1]["x"],"main"=>x[2]["x"],"max"=>x[3]["x"]) 
-      z = data[checkedList[1]]
-      tTchecked = "x&diffparam"
-    elseif (length(xData)>=2) & (length(yData)==0) & (length(checkedList)==0)
-      temp = [x["val"] for x in xData if x["check"]==true][1]  
-      x = temp[1]
-      x = Dict{String,Any}("min"=>x[1]["x"],"main"=>x[2]["x"],"max"=>x[3]["x"])  
-      z = temp[2]
-      z = Dict{String,Any}("min"=>z[1]["x"],"main"=>z[2]["x"],"max"=>z[3]["x"]) 
-      tTchecked = "2 x"  
-    elseif (length(yData)>=2) & (length(xData)==0) & (length(checkedList)==0)
-      temp = [z["val"] for z in yData if z["check"]==true][1]  
-      x = temp[1]
-      x = Dict{String,Any}("min"=>x[1]["z"],"main"=>x[2]["z"],"max"=>x[3]["z"]) 
-      z = temp[2]
-      z = Dict{String,Any}("min"=>z[1]["z"],"main"=>z[2]["z"],"max"=>z[3]["z"]) 
-      tTchecked = "2 z"
-    elseif (length(checkedList)==0)
-      x = [x["val"] for x in xData if x["check"]==true][1]
-      x = Dict{String,Any}("min"=>x[1]["x"],"main"=>x[2]["x"],"max"=>x[3]["x"])  
-      z = [z["val"] for z in yData if z["check"]==true][1] 
-      z = Dict{String,Any}("min"=>z[1]["z"],"main"=>z[2]["z"],"max"=>z[3]["z"]) 
-      tTchecked = "1 x&1 z"
-    # cases with only X-Y
-    elseif (length(checkedList)==1) & (length(xData)==0) & (length(yData)==0)
-      x = data[checkedList[1]]
-      x = Dict{String,Any}("min"=>x["min"],"main"=>x["main"],"max"=>x["max"]) 
-      z = Dict{String,Any}("run"=>["val"])
-      tTchecked = "1diffparam"
-    elseif (length(checkedList)==0) & (length(xData)==1) & (length(yData)==0)
-      x = [x["val"] for x in xData if x["check"]==true][1]
-      x = Dict{String,Any}("min"=>x[1]["x"],"main"=>x[2]["x"],"max"=>x[3]["x"]) 
-      z = Dict{String,Any}("run"=>["val"])
-      tTchecked = "1x"
-    elseif (length(checkedList)==0) & (length(xData)==0) & (length(yData)==1)
-      x = [z["val"] for z in yData if z["check"]==true][1] 
-      x = Dict{String,Any}("min"=>z[1]["z"],"main"=>z[2]["z"],"max"=>z[3]["z"]) 
-      z = Dict{String,Any}("run"=>["val"])
-      tTchecked = "1y"
+    # get any time variation that's been checked by user
+    try
+      t_var = [t["val"] for t in tVaried if t["check"]==true]
+      t_ind = [t["ind"] for t in tVaried if t["check"]==true]
+      t_var = [Dict("min"=>t_point[1]["x"]*sec_in_Ma,"main"=>t_point[2]["x"]*sec_in_Ma,"max"=>t_point[3]["x"]*sec_in_Ma)
+         for t_point in t_var]
+    catch e
+      println("no time variation defined!")
     end
 
+    # get any temperature variation that's been checked by user
+    try
+      T_var = [T["val"] for T in TVaried if T["check"]==true]
+      T_ind = [T["ind"] for T in TVaried if T["check"]==true]
+      
+      T_var = [Dict("min"=>T_point[1]["y"]+c_to_kelvin,"main"=>T_point[2]["y"]+c_to_kelvin,"max"=>T_point[3]["y"]+c_to_kelvin)
+         for T_point in T_var]     
+    catch e
+      print("no temperature variation defined!")
+    end
+    print(t_var)
+    print(T_var)
+    # check TYPE of X-Y-(Z) data (t/T/diffusion parameter)
+    if length(checkedList)==2
+      tTchecked = "onlydiffparams"
+      names_out = checkedList
+      x = data[checkedList[1]]      
+      z = data[checkedList[2]]         
+
+    elseif (isempty(t_var)) & !(isempty(T_var)) & (length(checkedList)==1)
+      tTchecked = "diffparam&T"
+      names_out = [checkedList[1],string("temperature at point ",T_ind[1]+1," (°C)")]
+      x = data[checkedList[1]]
+      z = T_var[1] 
+
+    elseif !(isempty(t_var)) & (isempty(T_var)) & length(checkedList)==1
+      tTchecked = "t&diffparam"
+      names_out = [string("time at point ",t_ind[1]+1," (Ma)"),checkedList[1]]
+      x = t_var[1]
+      z = data[checkedList[1]]
+    
+    elseif (length(t_var)>=2) & (isempty(T_var)) & (length(checkedList)==0)
+      tTchecked = "2 t" 
+      names_out = [string("time at point ",t_ind[1]+1," (Ma)"),string("time at point ",t_ind[2]+1," (Ma)")]   
+      x = t_var[1]
+      z = t_var[2]
+       
+    elseif (length(T_var)>=2) & (length(t_var)==0) & (length(checkedList)==0)
+      tTchecked = "2 T"
+      names_out = [string("temperature at point ",T_ind[1]+1," (Ma)"),string("temperature at point ",T_ind[2]+1," (Ma)")] 
+      x = T_var[1]
+      z = T_var[2]
+      
+    elseif (length(checkedList)==0) & !(isempty(t_var)) & !(isempty(T_var))
+      tTchecked = "1 t&1 T"
+      names_out = [string("time at point ",t_ind[1]+1," (Ma)"),string("temperature at point ",T_ind[1]+1," (°C)")]
+      x = t_var[1]
+      z = T_var[1]
+      
+    # cases where only X-Y plotted (not Z)
+    elseif (length(checkedList)==1) & isempty(t_var) & isempty(T_var)
+      tTchecked = "1diffparam"
+      names_out = checkedList
+      x = data[checkedList[1]]
+      z = Dict{String,Any}("run"=>["val"])
+      
+    elseif (length(checkedList)==0) & (length(t_var)==1) & isempty(T_var)
+      tTchecked = "1t"
+      names_out = [string("time at point ",t_ind[1]+1," (Ma)")]
+      x = t_var[1]
+      z = Dict{String,Any}("run"=>["val"])
+      
+    elseif (length(checkedList)==0) & (length(T_var)==1) & isempty(t_var)
+      tTchecked = "1T"
+      names_out = [string("temperature at point ",T_ind[1]+1," (°C)")]
+      x = T_var[1]
+      z = Dict{String,Any}("run"=>["val"])
+    end
+    # END OF t/T/diff'n param CHECKING
+    
+    # convert from JSON3 to standard Dict
+    x = Dict{String,Any}("min"=>x["min"],"main"=>x["main"],"max"=>x["max"]) 
+    if haskey(z,"min")
+      z = Dict{String,Any}("min"=>z["min"],"main"=>z["main"],"max"=>z["max"])
+    end
+
+    # convert types in case not converted on javascript side - harder to enforce there
     if typeof(x["min"])==String
       x["max"] = parse(Float64,x["max"])
       x["min"] = parse(Float64,x["min"]) 
@@ -242,76 +295,248 @@ function parse_and_run_payload!(queue,payload)
       end
     end
 
+    # INITIALIZE PLOTTING LOOP VALS
     x["run"] = range(x["min"], stop=x["max"], length=round(Int64,numberX))
     if (haskey(z,"min"))
       z["run"] = range(z["min"], stop=z["max"], length=round(Int64,numberZ))
     end
 
-    lenXSeries = length(xSeries)
-    lenYSeries = length(ySeries)
-
-    n_iter = 50    
-
+    lentSeries = length(tSeries)
+    n_iter = 50 # for diffusion solver   
+    n_time_seg_subsegs = 20 
     t_Ma = zeros((round(Int64,numberX), round(Int64,numberZ)))
 
-    data_new = Dict()
-    for (key, value) in data
-      if (typeof(value)==JSON3.Object{Base.CodeUnits{UInt8, String}, SubArray{UInt64, 1, Vector{UInt64}, Tuple{UnitRange{Int64}}, true}})
-        value_new = Dict{String,Any}()
-        for (nest_key, nest_value) in value
-          value_new[string(nest_key)] = nest_value
-        end
-        value = deepcopy(value_new)
-      end
-      data_new[key] = value
-    end
-    data = deepcopy(data_new)
 
     for (i,xi) in enumerate(x["run"])
         for (j,zi) in enumerate(z["run"])
+          print(tTchecked)
           if (tTchecked)=="onlydiffparams"
               data[checkedList[1]]["main"] = string(xi)
               data[checkedList[2]]["main"] = string(zi)
-          elseif (tTchecked)=="z&diffparam"
-              data[checkedList[1]]["main"] = xi
-              ySeries[yData[1]["ind"]] = zi
-          elseif (tTchecked)=="x&diffparam"
-              data[checkedList[1]]["main"] = zi
-              xSeries[xData[1]["ind"]] = xi
-          elseif (tTchecked)=="2 x"
-              xSeries[xData[1]["ind"]] = xi
-              xSeries[xData[2]["ind"]] = xi
-          elseif (tTchecked)=="2 z"
-              ySeries[yData[1]["ind"]] = yi
-              ySeries[yData[2]["ind"]] = zi
-          elseif (tTchecked)=="1 x&1 z"              
-              xSeries[xData[1]["ind"]] = xi
-              ySeries[yData[1]["ind"]] = zi
+          elseif (tTchecked)=="diffparam&T"
+            data[checkedList[1]]["main"] = xi
+            TSeries[TVaried[1]["ind"]+1] = zi # convert to kelvin; correct for Javascript indexing
+          elseif (tTchecked)=="t&diffparam"
+            tSeries[tVaried[1]["ind"]+1] = xi
+            data[checkedList[1]]["main"] = zi
+          elseif (tTchecked)=="2 t"
+              tSeries[tVaried[1]["ind"]+1] = xi
+              tSeries[tVaried[2]["ind"]+1] = zi
+          elseif (tTchecked)=="2 T"
+            print("Tseries is: $TSeries\n")
+            Tindex2 = T_ind
+            print("T_ind is: $Tindex2\n")
+              TSeries[T_ind[1]+1] = xi
+              TSeries[T_ind[2]+1] = zi
+          elseif (tTchecked)=="1 t&1 T"              
+              tSeries[tVaried[1]["ind"]+1] = xi
+              TSeries[TVaried[1]["ind"]+1] = zi
           elseif (tTchecked)=="1diffparam"
               data[checkedList[1]]["main"] = xi
-          elseif (tTchecked)=="1x"
-              xSeries[xData[1]["ind"]] = xi
-          elseif (tTchecked)=="1y"
-              ySeries[yData[1]["ind"]] = xi
+          elseif (tTchecked)=="1t"
+              tSeries[tVaried[1]["ind"]+1] = xi
+          elseif (tTchecked)=="1T"
+              TSeries[TVaried[1]["ind"]+1] = xi
         end
-        xSeriesRun = Float64[]
-        ySeriesRun = Float64[]
-        for ind in 1:lenXSeries
-          if ind<lenXSeries
-            xSeriesRun = vcat(xSeriesRun,LinRange(xSeries[ind], xSeries[ind+1], 50))
-            ySeriesRun = vcat(ySeriesRun,LinRange(ySeries[ind], ySeries[ind+1], 50))
+
+        # javascript arrays are not necessarily sorted
+        idSort = sortperm(tSeries)
+        tSeries = tSeries[idSort]
+        TSeries = TSeries[idSort]
+
+        # subsample t-T path
+        tSeriesRun = Float64[]
+        TSeriesRun = Float64[]
+        for ind in 1:lentSeries       
+          if ind<lentSeries
+            if isempty(tSeriesRun)
+              tSeriesRun = vcat(tSeriesRun,LinRange(tSeries[ind], tSeries[ind+1], n_time_seg_subsegs))
+              TSeriesRun = vcat(TSeriesRun,LinRange(TSeries[ind], TSeries[ind+1], n_time_seg_subsegs))
+            else
+              tSectionNew = LinRange(tSeries[ind], tSeries[ind+1], n_time_seg_subsegs)
+              TSectionNew = LinRange(TSeries[ind], TSeries[ind+1], n_time_seg_subsegs)
+              tSeriesRun = vcat(tSeriesRun,tSectionNew[2:end])
+              TSeriesRun = vcat(TSeriesRun,TSectionNew[2:end])              
+            end
           end
         end
-        print(xSeriesRun)
-        print(ySeriesRun)
+        
+        print("t is: $tSeries \n")
+        print("T is: $TSeries for i = $i j= $j \n")
+        
+        # general params conversion
         L_dist = typeof(data["Letch"]["main"])==String ? parse(Float64, data["Letch"]["main"]) : convert(Float64, data["Letch"]["main"])
         U238 = typeof(data["U238"]["main"])==String ? parse(Float64, data["U238"]["main"]) : convert(Float64, data["U238"]["main"])
         Th232 = typeof(data["Th232"]["main"])==String ? parse(Float64, data["Th232"]["main"]) : convert(Float64, data["Th232"]["main"])
         Ea = typeof(data["Ea"]["main"])==String ? parse(Float64, data["Ea"]["main"]) : convert(Float64, data["Ea"]["main"])
         L = typeof(data["rad"]["main"])==String ? parse(Float64, data["rad"]["main"]) : convert(Float64, data["rad"]["main"])
         D0 = typeof(data["D0"]["main"])==String ? parse(Float64, data["D0"]["main"]) : convert(Float64, data["D0"]["main"])
-        rmr0 = typeof(data["rmr0"]["main"])==String ? parse(Float64, data["rmr0"]["main"]) : convert(Float64, data["rmr0"]["main"])
+        print("U238 concentration is: $U238 \n")
+        print("Th232 concentration is: $Th232 \n")
+        L2 = 60 # microns
+        log10D0L_a2_rdaam = log10(exp(D0)*L^2/L2^2)
+
+        # handle specific diffusion model param conversion
+        if (diffusion_model=="flowers09")
+          (U238_V,U235_V,Th232_V,U238_mol,U235_mol,Th232_mol
+          )= conc_to_atoms_per_volume(U238*1e-6,Th232*1e-6)      
+          rmr0 = typeof(data["rmr0"]["main"])==String ? parse(Float64, data["rmr0"]["main"]) : convert(Float64, data["rmr0"]["main"])
+          alpha = typeof(data["alpha"]["main"])==String ? parse(Float64, data["alpha"]["main"]) : convert(Float64, data["alpha"]["main"])
+          c0 = typeof(data["c0Value"]["main"])==String ? parse(Float64, data["c0Value"]["main"]) : convert(Float64, data["c0Value"]["main"])
+          c1 = typeof(data["c1Value"]["main"])==String ? parse(Float64, data["c1Value"]["main"]) : convert(Float64, data["c1Value"]["main"])
+          c2 = typeof(data["c2Value"]["main"])==String ? parse(Float64, data["c2Value"]["main"]) : convert(Float64, data["c2Value"]["main"])
+          c3 = typeof(data["c3Value"]["main"])==String ? parse(Float64, data["c3Value"]["main"]) : convert(Float64, data["c3Value"]["main"])
+          eta_q = typeof(data["etaq"]["main"])==String ? parse(Float64, data["etaq"]["main"]) : convert(Float64, data["etaq"]["main"])
+          psi = typeof(data["psi"]["main"])==String ? parse(Float64, data["psi"]["main"]) : convert(Float64, data["psi"]["main"])
+          omega = typeof(data["omega"]["main"])==String ? parse(Float64, data["omega"]["main"]) : convert(Float64, data["omega"]["main"])
+          etrap = typeof(data["etrap"]["main"])==String ? parse(Float64, data["etrap"]["main"]) : convert(Float64, data["etrap"]["main"])
+          
+        # solve diffusion
+          he_est = COAST.rdaam_forward_diffusion(alpha,c0,c1,c2,c3,rmr0,eta_q,L_dist*1e-4,psi,omega,etrap*1e3,COAST.Rjoules,Ea*1e3,log10D0L_a2_rdaam,n_iter,
+          U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,L*1e-6,reverse(tSeriesRun)...,reverse(TSeriesRun[1:end-1])...)
+        end
+        # find date via newton iterations
+        t_val = he_conc_to_date(U238_mol,U235_mol,Th232_mol,he_est)
+        t_Ma[i,j] = t_val/(1e6*COAST.sec_in_yrs)
+      end
+    end
+
+    print(names_out)
+    # convert time values so results won't be in seconds
+    if occursin("time",names_out[1])
+      x["run"] /= sec_in_Ma
+    end
+    if (haskey(z,"min"))
+      if occursin("time",names_out[2])
+        z["run"] /= sec_in_Ma
+      end
+    end
+
+    if occursin("temp",names_out[1])
+      x["run"] = x["run"].-c_to_kelvin
+    end
+    if (haskey(z,"min"))
+      if occursin("temp",names_out[2])
+        z["run"] = z["run"].-c_to_kelvin
+      end
+    end
+
+    # return depending on whether X-Y or X-Y-Z plot
+    if (haskey(z,"min"))
+      outstring = [t_Ma, x["run"], z["run"], names_out]
+    else
+      outstring = [t_Ma, x["run"], names_out]
+    end
+    return outstring
+
+
+  ####
+  # GLOBAL SENSITIVITY
+  # NO ZONATION
+  elseif function_to_COAST=="global_sensitivity"
+    samples = payload["samples"]
+    n_vars2vary = length(samples)
+    data = payload["data"]
+    diffusion_model = payload["model"]
+
+    # convert data from weird JSON3 dictionary format to standard dict
+    data=JSON3dict_to_dict(data)
+
+    n_run = typeof(data["numberX"])==String ? parse(Int64, data["numberX"]) : convert(Int64, data["numberX"])
+    tSeries = data["tSeries"]
+    TSeries = data["TSeries"]
+    print("TSeries is: $TSeries\n")
+    print("tSeries is: $tSeries\n")
+    tSeries = tSeries*3.1558e7*1e6
+    TSeries = TSeries.+ 273.15
+    lentSeries = length(tSeries)
+
+    data_to_run = Dict{String, Float64}()
+
+    data_to_run["U238"] = typeof(data["U238"]["main"])==String ? parse(Float64, data["U238"]["main"]) : convert(Float64, data["U238"]["main"])
+    data_to_run["Th232"] = typeof(data["Th232"]["main"])==String ? parse(Float64, data["Th232"]["main"]) : convert(Float64, data["Th232"]["main"])
+    data_to_run["Ea"] = typeof(data["Ea"]["main"])==String ? parse(Float64, data["Ea"]["main"]) : convert(Float64, data["Ea"]["main"])
+    data_to_run["rad"] = typeof(data["rad"]["main"])==String ? parse(Float64, data["rad"]["main"]) : convert(Float64, data["rad"]["main"])
+    data_to_run["D0"] = typeof(data["D0"]["main"])==String ? parse(Float64, data["D0"]["main"]) : convert(Float64, data["D0"]["main"])
     
+    # diffusion model-specific conversion
+    if (diffusion_model=="flowers09")
+      data_to_run["Letch"] = typeof(data["Letch"]["main"])==String ? parse(Float64, data["Letch"]["main"]) : convert(Float64, data["Letch"]["main"])
+      data_to_run["rmr0"] = typeof(data["rmr0"]["main"])==String ? parse(Float64, data["rmr0"]["main"]) : convert(Float64, data["rmr0"]["main"])
+      data_to_run["alpha"] = typeof(data["alpha"]["main"])==String ? parse(Float64, data["alpha"]["main"]) : convert(Float64, data["alpha"]["main"])
+      data_to_run["c0Value"] = typeof(data["c0Value"]["main"])==String ? parse(Float64, data["c0Value"]["main"]) : convert(Float64, data["c0Value"]["main"])
+      data_to_run["c1Value"] = typeof(data["c1Value"]["main"])==String ? parse(Float64, data["c1Value"]["main"]) : convert(Float64, data["c1Value"]["main"])
+      data_to_run["c2Value"] = typeof(data["c2Value"]["main"])==String ? parse(Float64, data["c2Value"]["main"]) : convert(Float64, data["c2Value"]["main"])
+      data_to_run["c3Value"] = typeof(data["c3Value"]["main"])==String ? parse(Float64, data["c3Value"]["main"]) : convert(Float64, data["c3Value"]["main"])
+      data_to_run["etaq"] = typeof(data["etaq"]["main"])==String ? parse(Float64, data["etaq"]["main"]) : convert(Float64, data["etaq"]["main"])
+      data_to_run["psi"] = typeof(data["psi"]["main"])==String ? parse(Float64, data["psi"]["main"]) : convert(Float64, data["psi"]["main"])
+      data_to_run["omega"] = typeof(data["omega"]["main"])==String ? parse(Float64, data["omega"]["main"]) : convert(Float64, data["omega"]["main"])
+      data_to_run["etrap"] = typeof(data["etrap"]["main"])==String ? parse(Float64, data["etrap"]["main"]) : convert(Float64, data["etrap"]["main"])
+    end
+
+    n_time_seg_subsegs = 20
+    n_iter = 50 # for diffusion model
+    date_Ma = zeros(Float64,n_run)
+    for i=1:n_run
+      for j=1:n_vars2vary
+        key = payload["key_list"][j]     
+        if occursin("tData", key)
+          tData_ind = parse(Int64,key[6])+1
+          tSeries[tData_ind] = samples[j][i]*3.1558e13 # correct from javascript indexing
+        elseif occursin("TData", key)
+          TData_ind = parse(Int64,key[6])+1 # jscript is zero indexed
+          TSeries[TData_ind] = samples[j][i].+273.15
+        else
+          data[key]["main"] = samples[j][i]
+        end
+      end
+      # javascript arrays are not necessarily sorted
+      print("pre-sorted t is: $tSeries \n")
+      print("pre-sorted T is: $TSeries for i = $i\n")
+
+      idSort = sortperm(tSeries)
+      tSeries = tSeries[idSort]
+      TSeries = TSeries[idSort]
+
+      tSeriesRun = Float64[]
+      TSeriesRun = Float64[]
+      
+      for ind in 1:lentSeries
+        if ind<lentSeries
+          if isempty(tSeriesRun)
+            tSeriesRun = vcat(tSeriesRun,LinRange(tSeries[ind], tSeries[ind+1], n_time_seg_subsegs))
+            TSeriesRun = vcat(TSeriesRun,LinRange(TSeries[ind], TSeries[ind+1], n_time_seg_subsegs))
+          else
+            tSectionNew = LinRange(tSeries[ind], tSeries[ind+1], n_time_seg_subsegs)
+            TSectionNew = LinRange(TSeries[ind], TSeries[ind+1], n_time_seg_subsegs)
+            tSeriesRun = vcat(tSeriesRun,tSectionNew[2:end])
+            TSeriesRun = vcat(TSeriesRun,TSectionNew[2:end])              
+          end
+        end
+      end
+
+      print("t is: $tSeries \n")
+      print("T is: $TSeries for i = $i\n")
+
+      # conversion
+      U238 = typeof(data["U238"]["main"])==String ? parse(Float64, data["U238"]["main"]) : convert(Float64, data["U238"]["main"])
+      Th232 = typeof(data["Th232"]["main"])==String ? parse(Float64, data["Th232"]["main"]) : convert(Float64, data["Th232"]["main"])
+      Ea = typeof(data["Ea"]["main"])==String ? parse(Float64, data["Ea"]["main"]) : convert(Float64, data["Ea"]["main"])
+      L = typeof(data["rad"]["main"])==String ? parse(Float64, data["rad"]["main"]) : convert(Float64, data["rad"]["main"])
+      D0 = typeof(data["D0"]["main"])==String ? parse(Float64, data["D0"]["main"]) : convert(Float64, data["D0"]["main"])
+      
+      L2 = 60
+
+      print("U238 concentration is: $U238 \n")
+      print("Th232 concentration is: $Th232 \n")
+      log10D0L_a2_rdaam = log10(exp(D0)*L^2/L2^2)
+      
+      # diffusion model-specific conversion
+      if (diffusion_model=="flowers09")
+        (U238_V,U235_V,Th232_V,U238_mol,U235_mol,Th232_mol
+        )= conc_to_atoms_per_volume(U238*1e-6,Th232*1e-6)
+        L_dist = typeof(data["Letch"]["main"])==String ? parse(Float64, data["Letch"]["main"]) : convert(Float64, data["Letch"]["main"])
+        rmr0 = typeof(data["rmr0"]["main"])==String ? parse(Float64, data["rmr0"]["main"]) : convert(Float64, data["rmr0"]["main"])
         alpha = typeof(data["alpha"]["main"])==String ? parse(Float64, data["alpha"]["main"]) : convert(Float64, data["alpha"]["main"])
         c0 = typeof(data["c0Value"]["main"])==String ? parse(Float64, data["c0Value"]["main"]) : convert(Float64, data["c0Value"]["main"])
         c1 = typeof(data["c1Value"]["main"])==String ? parse(Float64, data["c1Value"]["main"]) : convert(Float64, data["c1Value"]["main"])
@@ -321,96 +546,18 @@ function parse_and_run_payload!(queue,payload)
         psi = typeof(data["psi"]["main"])==String ? parse(Float64, data["psi"]["main"]) : convert(Float64, data["psi"]["main"])
         omega = typeof(data["omega"]["main"])==String ? parse(Float64, data["omega"]["main"]) : convert(Float64, data["omega"]["main"])
         etrap = typeof(data["etrap"]["main"])==String ? parse(Float64, data["etrap"]["main"]) : convert(Float64, data["etrap"]["main"])
-
-        (U238_V,U235_V,Th232_V,U238_mol,U235_mol,Th232_mol
-            )= conc_to_atoms_per_volume(U238*1e-6,Th232*1e-6)
-        L2 = 60
-        log10D0L_a2_rdaam = log10(exp(D0)*L^2/L2^2)
           
-        # print(alpha,"\n",c0,"\n",c1,"\n",c2,"\n",c3,"\n",rmr0,"\n",eta_q,"\n",L_dist*1e-4,"\n",psi,"\n",omega,"\n",(etrap*1e3),"\n",COAST.Rjoules,"\n",(Ea*1e3),"\n",log10D0L_a2_rdaam,"\n",n_iter,"\n",
-        # U238_mol,"\n",U238_V,"\n",U235_mol,"\n",U235_V,"\n",Th232_mol,"\n",Th232_V,"\n",L,"\n")
-
         he_est = COAST.rdaam_forward_diffusion(alpha,c0,c1,c2,c3,rmr0,eta_q,L_dist*1e-4,psi,omega,etrap*1e3,COAST.Rjoules,Ea*1e3,log10D0L_a2_rdaam,n_iter,
-        U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,L*1e-6,reverse(ySeriesRun)...,reverse(xSeriesRun[1:end-1])...)
-        pre_he_t2 = (8*(U238_mol*exp(43.6*1e6*COAST.sec_in_yrs/COAST.τ38)-U238_mol)+
-                 7*(U235_mol*exp(43.6*1e6*COAST.sec_in_yrs/COAST.τ35)-U235_mol))
-        
-        t_val = [1e15]
-        # newton iterations
-        for i=1:10
-          f0 = (8*(U238_mol*exp(t_val[1]/COAST.τ38)-U238_mol)+
-          7*(U235_mol*exp(t_val[1]/COAST.τ35)-U235_mol)) - he_est
-          f0_prime = 8*(U238_mol*exp(t_val[1]/COAST.τ38)/COAST.τ38)+7*(U235_mol*exp(t_val[1]/COAST.τ35)/COAST.τ35)
-          t_val[1] = t_val[1] - f0/f0_prime
-        end
-        t_Ma[i,j] = t_val[1]/(1e6*COAST.sec_in_yrs)
+        U238_mol,U238_V,U235_mol,U235_V,Th232_mol,Th232_V,L*1e-6,reverse(tSeriesRun)...,reverse(TSeriesRun[1:end-1])...)
       end
+      t_val = he_conc_to_date(U238_mol,U235_mol,Th232_mol,he_est)
+      date_Ma[i] = t_val/(1e6*COAST.sec_in_yrs)
+
     end
-
-    outstring = [t_Ma, x["run"]]
-    return outstring
-
-  elseif function_to_COAST=="global_sensitivity"
-    samples = payload["samples"]
-    n_vars2vary = length(samples)
-    data = payload["data"]
-    n_run = typeof(data["numberX"])==String ? parse(Int64, data["numberX"]) : convert(Int64, data["numberX"])
-    xSeries = data["xSeries"]
-    ySeries = data["ySeries"]
-    xSeries = xSeries.+ 273.15
-    ySeries = ySeries*3.1558e7*1e6
-    lenXSeries = length(xSeries)
-
-    data_to_run = Dict{String, Float64}()
-    data_to_run["Letch"] = typeof(data["Letch"]["main"])==String ? parse(Float64, data["Letch"]["main"]) : convert(Float64, data["Letch"]["main"])
-    data_to_run["U238"] = typeof(data["U238"]["main"])==String ? parse(Float64, data["U238"]["main"]) : convert(Float64, data["U238"]["main"])
-    data_to_run["Th232"] = typeof(data["Th232"]["main"])==String ? parse(Float64, data["Th232"]["main"]) : convert(Float64, data["Th232"]["main"])
-    data_to_run["Ea"] = typeof(data["Ea"]["main"])==String ? parse(Float64, data["Ea"]["main"]) : convert(Float64, data["Ea"]["main"])
-    data_to_run["rad"] = typeof(data["rad"]["main"])==String ? parse(Float64, data["rad"]["main"]) : convert(Float64, data["rad"]["main"])
-    data_to_run["D0"] = typeof(data["D0"]["main"])==String ? parse(Float64, data["D0"]["main"]) : convert(Float64, data["D0"]["main"])
-    data_to_run["rmr0"] = typeof(data["rmr0"]["main"])==String ? parse(Float64, data["rmr0"]["main"]) : convert(Float64, data["rmr0"]["main"])
-    data_to_run["alpha"] = typeof(data["alpha"]["main"])==String ? parse(Float64, data["alpha"]["main"]) : convert(Float64, data["alpha"]["main"])
-    data_to_run["c0Value"] = typeof(data["c0Value"]["main"])==String ? parse(Float64, data["c0Value"]["main"]) : convert(Float64, data["c0Value"]["main"])
-    data_to_run["c1Value"] = typeof(data["c1Value"]["main"])==String ? parse(Float64, data["c1Value"]["main"]) : convert(Float64, data["c1Value"]["main"])
-    data_to_run["c2Value"] = typeof(data["c2Value"]["main"])==String ? parse(Float64, data["c2Value"]["main"]) : convert(Float64, data["c2Value"]["main"])
-    data_to_run["c3Value"] = typeof(data["c3Value"]["main"])==String ? parse(Float64, data["c3Value"]["main"]) : convert(Float64, data["c3Value"]["main"])
-    data_to_run["etaq"] = typeof(data["etaq"]["main"])==String ? parse(Float64, data["etaq"]["main"]) : convert(Float64, data["etaq"]["main"])
-    data_to_run["psi"] = typeof(data["psi"]["main"])==String ? parse(Float64, data["psi"]["main"]) : convert(Float64, data["psi"]["main"])
-    data_to_run["omega"] = typeof(data["omega"]["main"])==String ? parse(Float64, data["omega"]["main"]) : convert(Float64, data["omega"]["main"])
-    data_to_run["etrap"] = typeof(data["etrap"]["main"])==String ? parse(Float64, data["etrap"]["main"]) : convert(Float64, data["etrap"]["main"])
-
-
-    n_iter = 50 
-    date_Ma = zeros(Float64,n_run)
-
-    for i=1:n_run
-      for j=1:n_vars2vary
-        key = payload["key_list"][j]
-        if (key[1:5]=="yData")
-          yData_ind = parse(Int64,key[6])+1 # jscript is zero indexed
-          ySeries[yData_ind] = samples[j][i]
-        elseif (key[1:5]=="xData")
-          xData_ind = parse(Int64,key[6])+1
-          xSeries[xData_ind] = samples[j][i]
-        else
-          data[key] = samples[j][i]
-        end
-      end
-
-      xSeriesRun = Float64[]
-      ySeriesRun = Float64[]
-      for ind in 1:lenXSeries
-        if ind<lenXSeries
-          xSeriesRun = vcat(xSeriesRun,LinRange(xSeries[ind], xSeries[ind+1], 50))
-          ySeriesRun = vcat(ySeriesRun,LinRange(ySeries[ind], ySeries[ind+1], 50))
-        end
-      end
-
-      date_Ma[i] = run_rdaam_dict(n_iter, xSeriesRun, ySeriesRun, data_to_run)
-    end
-    
+    print(date_Ma)
     return date_Ma
 
+  # single load run
   elseif function_to_COAST=="single_grain"
     Etrap = payload["Etrap"]
     Etrap = parse(Float64,Etrap)
@@ -487,6 +634,36 @@ function parse_and_run_payload!(queue,payload)
 
 
   return "Passing JSON payload to COAST successful!"
+end
+
+# TYPE CONVERSION HELPER FUNCS
+function JSON3dict_to_dict(data)
+  data_new = Dict()
+  for (key, value) in data
+    if (typeof(value)==JSON3.Object{Base.CodeUnits{UInt8, String}, SubArray{UInt64, 1, Vector{UInt64}, Tuple{UnitRange{Int64}}, true}})
+      value_new = Dict{String,Any}()
+      for (nest_key, nest_value) in value
+        value_new[string(nest_key)] = nest_value
+      end
+      value = deepcopy(value_new)
+    end
+    data_new[string(key)] = value
+  end
+  data = deepcopy(data_new)
+  return data
+end
+
+# convert concentration to date using Newton iters 
+function he_conc_to_date(U238_mol,U235_mol,Th232_mol,he_est)
+  t_val = [1e15] # initial value
+  for i=1:20 # tested this val (10 usually sufficient)
+    f0 = (8*(U238_mol*exp(t_val[1]/COAST.τ38)-U238_mol)+
+    7*(U235_mol*exp(t_val[1]/COAST.τ35)-U235_mol)+
+    6*(Th232_mol*exp(t_val[1]/COAST.τ32)-Th232_mol)) - he_est
+    f0_prime = 8*(U238_mol*exp(t_val[1]/COAST.τ38)/COAST.τ38)+7*(U235_mol*exp(t_val[1]/COAST.τ35)/COAST.τ35)+6*(Th232_mol*exp(t_val[1]/COAST.τ32)/COAST.τ32)
+    t_val[1] = t_val[1] - f0/f0_prime
+  end
+  return t_val[1]
 end
 
 function zonation_n_times_forward(distance,L,n_t,Ea,D0,U38_Pb06,sigU38_Pb06,dr,
