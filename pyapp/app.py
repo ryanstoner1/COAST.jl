@@ -62,26 +62,54 @@ def getPCE():
                     key_list.append(key)
                     print("found expansion parameter")
                 else:                
-                    print("Not varying parameter %s \n".format(key))
+                    print("Not varying parameter {} \n".format(key))
             except:
                 print("skipped numberX and numberZ")
-
+        print(expand_list)
+        print(key_list)
         joint_distribution = chp.J(*expand_list)
-        expansion = chp.generate_expansion(5, joint_distribution)
+        if (len(key_list)>5):
+            expansion = chp.generate_expansion(2, joint_distribution)
+        if (len(key_list)>3):
+            expansion = chp.generate_expansion(3, joint_distribution)
+        elif (len(key_list)<=3):
+            expansion = chp.generate_expansion(4, joint_distribution)
+        else:
+            print("issue with expansion!")
+            expansion =  chp.generate_expansion(2, joint_distribution)
+
+        
         samples = joint_distribution.sample(int(data["numberX"]), rule="sobol")
-        response = jsonify([key_list, samples.tolist()])
-        response.headers.add("Access-Control-Allow-Origin", "*")
         julia_data = {
             "function_to_run": "global_sensitivity",
             "samples": samples.tolist(),
             "key_list": key_list,
             "data": data,
+            "model": data["model"],
         }
         r = requests.post('http://0.0.0.0:8000/model',json = julia_data)
+        
         try:
-            dates = np.array(json.loads(r.text))
+            evals_list = json.loads(r.text)
+            evals = np.array(evals_list)
+
+            approx_solver = chp.fit_regression(expansion, samples, evals)
+            print("Regression fitted! calculating sensitivity indices . . .")
+            sens_m = chp.Sens_m(approx_solver,joint_distribution)
+            print("found first order indices!")
+            sens_t = chp.Sens_t(approx_solver,joint_distribution)
+            print("found total order indices!")
+            print(chp.Var(approx_solver,joint_distribution))
+            #response = jsonify([sens_m, sens_t])
+            response_val = [(100*sens_m).tolist(),(100*sens_t).tolist(),key_list]
+            response = jsonify(response_val)
+            print(response_val)
+            response.headers.add("Access-Control-Allow-Origin", "*")
         except:
+            response = jsonify(r.text)
+            response.headers.add("Access-Control-Allow-Origin", "*")
             print(r.text)
+        
         
         return response 
     else:
