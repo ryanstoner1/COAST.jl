@@ -23,8 +23,19 @@
             chartRef.current.chart.series[indSeriesX].remove();
             chartRef.current.chart.series[indSeriesY].remove();
 
-            setXData(xData => xData.filter(value => value.ind!==(indCur)));
-            setYData(yData => yData.filter(value => value.ind!==(indCur)));
+            //setXData(xData => xData.filter(value => value.ind!==(indCur)));
+            setYData(yData => yData.filter(value => value.ind!==(indCur)).map(value => {
+                if (value.ind>indCur){
+                    value.ind = value.ind-1
+                }
+                return value
+            }));
+            setXData(xData => xData.filter(value => value.ind!==(indCur)).map(value => {
+                    if (value.ind>indCur){
+                        value.ind = value.ind-1
+                    }
+                    return value
+            }))
         };
     };
 
