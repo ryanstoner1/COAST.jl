@@ -12,7 +12,7 @@ import Menu from './Menu_p3.js'
 import Diff from './diffusion_models_p3.js'
 import { handleTimeSelectMenu, handleTemperatureSelectMenu } from './contextMenu.js';
 import { handleCheckFlowers09} from './handleChecking.js';
-import {XDataCheckList, YDataCheckList} from './XYChecklistSensitivity.js';
+import {TimeDataCheckList, TempDataCheckList} from './tTChecklistSensitivity.js';
 require('highcharts/highcharts-more')(Highcharts);
 require("highcharts/modules/draggable-points")(Highcharts);
 
@@ -34,8 +34,8 @@ function Load() {
   const [optionsSens, setOptionsSens] = useState({});
   const [maxChecked, setMaxChecked] = useState(false)
 
-  const [xData,setXData] = useState([]);
-  const [yData,setYData] = useState([]);
+  const [tData,settData] = useState([]);
+  const [TData,setTData] = useState([]);
   const [xPos, setXPos] = useState("0px");
   const [yPos, setYPos] = useState("0px");
   const [menu, showMenu] = useState(false);
@@ -105,7 +105,7 @@ function Load() {
   };
 
   // need to interpolate; usually time bounds have more points than needed
-  const handleSensitivity = (timeBoundAcc, botBoundAcc, topBoundAcc, timeBoundGood, botBoundGood, topBoundGood, nPointsSens, radioValue,chartRefInit, yData) => {
+  const handleSensitivity = (timeBoundAcc, botBoundAcc, topBoundAcc, timeBoundGood, botBoundGood, topBoundGood, nPointsSens, radioValue,chartRefInit, TData) => {
 
     const formData = new FormData();
     const formNPoints = {};
@@ -150,10 +150,10 @@ function Load() {
         // res.data.bot
         const optionsRes = plotInit(initChartClick, initPointClick, pointDrag, initP1, 
           initXBoundP1, initYBoundP1, chartRefPlot, handleContextMenu, 
-          hideContextMenu, setXData, setYData, errorVisibleX, errorVisibleY, maxXAxis, maxYAxis)
+          hideContextMenu, settData, setTData, errorVisibleX, errorVisibleY, maxXAxis, maxYAxis)
         setOptionsSens(optionsRes)
 
-        const yNewArr = []
+        const TNewArr = []
         res.data.time.forEach((elem, ind) => {  
           if (ind>0) {
             const lowX = 10; 
@@ -164,20 +164,20 @@ function Load() {
             clickLoc.yAxis[0].value = res.data.bot[ind] + (res.data.top[ind]-res.data.bot[ind])/2;
             initChartClick(clickLoc, chartRefPlot, lowX, res.data.bot[ind], highX, res.data.top[ind],errorVisibleY, draggableY);         
           };
-          let xNew = [...chartRefPlot.current.chart.series[2].xData];
-          let yNew = [...chartRefPlot.current.chart.series[2].yData];
-          let yNewAdd = [{x: xNew[0], y: yNew[0]},{x: xNew[1], y: yNew[1]},{x: xNew[2], y: yNew[2]}];
-          yNewArr.push({ind: ind, val: [...yNewAdd], check: false, disabled: false})
-          console.log(yData)
-          setYData([...yNewArr]);
+          let tNew = [...chartRefPlot.current.chart.series[2].xData];
+          let TNew = [...chartRefPlot.current.chart.series[2].yData];
+          let TNewAdd = [{x: tNew[0], y: TNew[0]},{x: tNew[1], y: TNew[1]},{x: tNew[2], y: TNew[2]}];
+          TNewArr.push({ind: ind, val: [...TNewAdd], check: false, disabled: false})
+          console.log(TData)
+          setTData([...TNewArr]);
         });
-        console.log(yNewArr)
+        console.log(TNewArr)
       }).catch(err => console.warn(err));   
   };
 
   useEffect( ()=>{
-    console.log(yData)
-  },[yData])
+    console.log(TData)
+  },[TData])
 
   // Add initial points from HeFTy
   useEffect(() => {
@@ -246,7 +246,7 @@ function Load() {
         <DropdownButton id="dropdown-basic-button" title="Processing options">
         <Dropdown.Item href="#/action-1" onClick={() => handlePlot(optionsHeFTy,chartRefInit, topBoundGood,botBoundGood,timeBoundGood, topBoundAcc,botBoundAcc, timeBoundAcc)}>Plot Data</Dropdown.Item>
         <Dropdown.Item href="#/action-2">Subsample Data</Dropdown.Item>
-        <Dropdown.Item onClick={() => handleSensitivity(timeBoundAcc, botBoundAcc, topBoundAcc, timeBoundGood, botBoundGood, topBoundGood, nPointsSens, radioValue,chartRefInit, yData)}>Sensitivity Analysis</Dropdown.Item>
+        <Dropdown.Item onClick={() => handleSensitivity(timeBoundAcc, botBoundAcc, topBoundAcc, timeBoundGood, botBoundGood, topBoundGood, nPointsSens, radioValue,chartRefInit, TData)}>Sensitivity Analysis</Dropdown.Item>
         </DropdownButton>
 
     <InputGroup className="mb-3">
@@ -287,7 +287,7 @@ function Load() {
 { menu ? <Menu 
             xPos={xPos} yPos={yPos} 
             chartRef={chartRefPlot} indPoint={indPoint} maxChecked={maxChecked} 
-            xData={xData} yData={yData} setXData={setXData} setYData={setYData}
+            tData={tData} TData={TData} settData={settData} setTData={setTData}
             handleTimeSelectMenu ={handleTimeSelectMenu} handleTemperatureSelectMenu={handleTemperatureSelectMenu}
             /> : null }
 {Object.keys(optionsSens).length === 0 ? null: 
@@ -305,17 +305,17 @@ function Load() {
                     <Dropdown.Item href="#/action-2" onClick={(e) => {handleDiffModel(e,"flowers09")}}>(U-Th)/He Ap. (Flowers et, 2009)</Dropdown.Item>
 </DropdownButton>
 { (diffusionParams.model==="flowers09") ?
-  <Diff chartRef={chartRefPlot} xData={xData} yData={yData} checkedList={checkedList} maxChecked={maxChecked} onCheckChange={(e)=>handleCheckFlowers09(e,xData,yData,setXData,setYData,setMaxChecked,checkedList, setCheckedList)} 
+  <Diff chartRef={chartRefPlot} tData={tData} TData={TData} checkedList={checkedList} maxChecked={maxChecked} onCheckChange={(e)=>handleCheckFlowers09(e,tData,TData,settData,setTData,setMaxChecked,checkedList, setCheckedList)} 
       setIsChartXY={setIsChartXY} setDataXY={setDataXY} radioValue={radioValue}
   />
 : null}
 { (diffusionParams.model==="cherniak00") ?
     <div>TODO: cherniak, 2000 U-Pb</div>
 : null}
-{ (xData.length>0) &&
-<XDataCheckList xData={xData} yData={yData} setXData={setXData} setYData={setYData} checkedList={checkedList} setMaxChecked={setMaxChecked} chartRef={chartRefPlot}/>}
-{ (yData.length>0) &&
-<YDataCheckList xData={xData} yData={yData} setXData={setXData} setYData={setYData} checkedList={checkedList} setMaxChecked={setMaxChecked} chartRef={chartRefPlot}/>}
+{ (tData.length>0) &&
+<TimeDataCheckList tData={tData} TData={TData} settData={settData} setTData={setTData} checkedList={checkedList} setMaxChecked={setMaxChecked} chartRef={chartRefPlot}/>}
+{ (TData.length>0) &&
+<TempDataCheckList tData={tData} TData={TData} settData={settData} setTData={setTData} checkedList={checkedList} setMaxChecked={setMaxChecked} chartRef={chartRefPlot}/>}
 </div>);
 }
 

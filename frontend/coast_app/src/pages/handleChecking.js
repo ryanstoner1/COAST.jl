@@ -1,7 +1,7 @@
 
-    const handleCheckX = (e,pointInd,pointCheck,xData,yData,setXData,setYData,checkedList,setMaxChecked) => {
+    const handleCheckt = (e,pointInd,pointCheck,tData,TData,settData,setTData,checkedList,setMaxChecked) => {
 
-        setXData(value => value.map(item=> {
+        settData(value => value.map(item=> {
             if (item.ind === pointInd & item.check === true) {
                 return {ind: pointInd, val : [...item.val], check: false, disabled: item.disabled} 
             } else if (item.ind === pointInd & item.check === false) {
@@ -9,11 +9,11 @@
             } else {
                 return item
             }}))
-        isCheckDisabled(xData,yData,checkedList,pointCheck,setXData,setYData,setMaxChecked)
+        isCheckDisabled(tData,TData,checkedList,pointCheck,settData,setTData,setMaxChecked)
     };
 
-    const handleCheckY = (e,pointInd,pointCheck,xData,yData,setXData,setYData,checkedList,setMaxChecked) => {    
-        setYData(value => value.map(item=> {
+    const handleCheckT = (e,pointInd,pointCheck,tData,TData,settData,setTData,checkedList,setMaxChecked) => {    
+        setTData(value => value.map(item=> {
             
             if (item.ind === pointInd & item.check === true) {
 
@@ -24,17 +24,17 @@
             } else {
                 return item
             }}))
-        isCheckDisabled(xData,yData,checkedList,pointCheck,setXData,setYData,setMaxChecked)
+        isCheckDisabled(tData,TData,checkedList,pointCheck,settData,setTData,setMaxChecked)
     };
 
-    const isCheckDisabled = (xData,yData,checkedList,pointCheck,setXData,setYData,setMaxChecked) => {
+    const isCheckDisabled = (tData,TData,checkedList,pointCheck,settData,setTData,setMaxChecked) => {
         
-        const countCopyY = [...yData];
-        const countCheckY = countCopyY.filter((countCopyY) => countCopyY.check === true).length;
-        const countCopyX = [...xData];
+        const countCopyZ = [...TData];
+        const countCheckZ = countCopyZ.filter((countCopyZ) => countCopyZ.check === true).length;
+        const countCopyX = [...tData];
         const countCheckX = countCopyX.filter((countCopyX) => countCopyX.check === true).length;
         const checkedListCopy = [...checkedList];
-        let totalCount = countCheckX + countCheckY + checkedListCopy.length;
+        let totalCount = countCheckX + countCheckZ + checkedListCopy.length;
         if (pointCheck === false) {
             totalCount = totalCount + 1;
         } else {
@@ -44,7 +44,7 @@
         
         if (totalCount > 1) {
             setMaxChecked(true)
-            setXData(value => value.map((item, index)=> {
+            settData(value => value.map((item, index)=> {
                 const newItem = {...item}
 
                 
@@ -58,7 +58,7 @@
                     return item
             }}))
 
-            setYData(value => value.map((item, index)=> {
+            setTData(value => value.map((item, index)=> {
                 const newItem = {...item}
 
                 if (item.check === true) {                    
@@ -72,7 +72,7 @@
             }}))
         } else {
             setMaxChecked(false)
-            setXData(value => value.map((item, index)=> {
+            settData(value => value.map((item, index)=> {
                 
                 if (item.disabled === true) {
                     return {ind: item.ind, val : item.val, check: item.check, disabled: false} 
@@ -81,7 +81,7 @@
                     return item
             }}))
 
-            setYData(value => value.map((item, index)=> {
+            setTData(value => value.map((item, index)=> {
 
 
                 if (item.disabled === true) {
@@ -94,14 +94,14 @@
         }
     }
 
-    const handleCheckFlowers09 = (e,xData,yData,setXData,setYData,setMaxChecked,checkedList, setCheckedList) => {
+    const handleCheckFlowers09 = (e,tData,TData,settData,setTData,setMaxChecked,checkedList, setCheckedList) => {
         let pointCheck = e.target.checked ? false : true
         if (e.target.checked ===true) {
             setCheckedList(checkedList => [...checkedList,e.target.value]);
         } else {
             setCheckedList(checkedList.filter(value => value!==e.target.value));
         } 
-        isCheckDisabled(xData,yData,checkedList,pointCheck,setXData,setYData,setMaxChecked)     
+        isCheckDisabled(tData,TData,checkedList,pointCheck,settData,setTData,setMaxChecked)     
     };
 
-    export {handleCheckFlowers09, handleCheckX, handleCheckY}
+    export {handleCheckFlowers09, handleCheckt, handleCheckT}

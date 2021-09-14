@@ -1,12 +1,12 @@
-const handleXMin = (e,index,chartRef,setXData) => {        
+const handletMin = (e,index,chartRef,settData) => {        
     if (e.key === "Enter") {
-        setXData(value => value.map((point,ind) => {
+        settData(value => value.map((point,ind) => {
             if (point.ind===index) {
                 const newPoint = {...point};
                 newPoint.val[0].x = e.target.valueAsNumber;
-                const newXData = JSON.parse(JSON.stringify(chartRef.current.chart.series[2*index+1].options.data))
-                newXData[0].x = e.target.valueAsNumber;
-                chartRef.current.chart.series[2*index+1].setData(newXData);  
+                const newtData = JSON.parse(JSON.stringify(chartRef.current.chart.series[2*index+1].options.data))
+                newtData[0].x = e.target.valueAsNumber;
+                chartRef.current.chart.series[2*index+1].setData(newtData);  
  
                 return newPoint
             } else {
@@ -16,15 +16,15 @@ const handleXMin = (e,index,chartRef,setXData) => {
     }
 };
 
-const handleXMax = (e,index,chartRef,setXData) => {        
+const handletMax = (e,index,chartRef,settData) => {        
     if (e.key === "Enter") {
-        setXData(value => value.map((point,ind) => {
+        settData(value => value.map((point,ind) => {
             if (point.ind===index) {
                 const newPoint = {...point};
                 newPoint.val[2].x = e.target.valueAsNumber;
-                const newXData = JSON.parse(JSON.stringify(chartRef.current.chart.series[2*index+1].options.data))
-                newXData[2].x = e.target.valueAsNumber;
-                chartRef.current.chart.series[2*index+1].setData(newXData);  
+                const newtData = JSON.parse(JSON.stringify(chartRef.current.chart.series[2*index+1].options.data))
+                newtData[2].x = e.target.valueAsNumber;
+                chartRef.current.chart.series[2*index+1].setData(newtData);  
  
                 return newPoint
             } else {
@@ -34,15 +34,15 @@ const handleXMax = (e,index,chartRef,setXData) => {
     }
 };
 
-const handleYMin = (e,index,chartRef,setYData) => {        
+const handleTMin = (e,index,chartRef,setTData) => {        
     if (e.key === "Enter") {
-        setYData(value => value.map((point,ind) => {
+        setTData(value => value.map((point,ind) => {
             if (point.ind===index) {
                 const newPoint = {...point};
                 newPoint.val[0].y = e.target.valueAsNumber;
-                const newYData = JSON.parse(JSON.stringify(chartRef.current.chart.series[2*index+2].options.data))
-                newYData[0].y = e.target.valueAsNumber;
-                chartRef.current.chart.series[2*index+2].setData(newYData);  
+                const newTData = JSON.parse(JSON.stringify(chartRef.current.chart.series[2*index+2].options.data))
+                newTData[0].y = e.target.valueAsNumber;
+                chartRef.current.chart.series[2*index+2].setData(newTData);  
  
                 return newPoint
             } else {
@@ -52,15 +52,15 @@ const handleYMin = (e,index,chartRef,setYData) => {
     }
 };
 
-const handleYMax = (e,index,chartRef,setYData) => {        
+const handleTMax = (e,index,chartRef,setTData) => {        
     if (e.key === "Enter") {
-        setYData(value => value.map((point,ind) => {
+        setTData(value => value.map((point,ind) => {
             if (point.ind===index) {
                 const newPoint = {...point};
                 newPoint.val[2].y = e.target.valueAsNumber;
-                const newYData = JSON.parse(JSON.stringify(chartRef.current.chart.series[2*index+2].options.data))
-                newYData[2].y = e.target.valueAsNumber;
-                chartRef.current.chart.series[2*index+2].setData(newYData);  
+                const newTData = JSON.parse(JSON.stringify(chartRef.current.chart.series[2*index+2].options.data))
+                newTData[2].y = e.target.valueAsNumber; // temperatures on y axis
+                chartRef.current.chart.series[2*index+2].setData(newTData);  
  
                 return newPoint
             } else {
@@ -70,4 +70,4 @@ const handleYMax = (e,index,chartRef,setYData) => {
     }
 };
 
-export {handleXMin, handleXMax, handleYMin, handleYMax}
+export {handletMin, handletMax, handleTMin, handleTMax}
