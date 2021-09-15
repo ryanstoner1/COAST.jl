@@ -5,7 +5,7 @@ This package is for thermochronological modeling and has two main focuses:
 
 - **sensitivity analysis**:  
 quantifying how uncertainties in input parameters explain the variance of permissible temperature-time paths and vice-versa using both global and local sensitivity analysis techniques
-- **open-source forward and thermochronlogical modeling**:  
+- **open-source forward and thermochronological modeling**:  
 a community-oriented resource for thermal history inversion
 ---
 
