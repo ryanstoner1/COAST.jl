@@ -1,5 +1,5 @@
 
-const plotInit = (initChartClick, initPointClick, pointDrag, initP1, 
+const plotInit = (initChartClick, initPointClick, pointDrag, releaseBounds, initP1, 
     initXBoundP1, initYBoundP1, chartRef, handleContextMenu, 
     hideContextMenu, setXData, setYData, errorVisibleX=false, errorVisibleY=false, maxTime=140, maxTemp=200) => {
     const plotObj = {
@@ -93,7 +93,7 @@ const plotInit = (initChartClick, initPointClick, pointDrag, initP1,
                 events: {
                     click: (e) => {
                         initChartClick(e, chartRef);
-                    }
+                    },
                 }
             },
             exporting: {
@@ -126,6 +126,9 @@ const plotInit = (initChartClick, initPointClick, pointDrag, initP1,
                             },
                             drag: (e) => {
                                 pointDrag(e, chartRef, setXData, setYData)
+                            },
+                            drop: (e) => {
+                                releaseBounds(e, chartRef);
                             },
                         }
                     }
