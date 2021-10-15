@@ -14,6 +14,7 @@ import initChartClick from './initChartClick.js';
 import initPointClick from './initPointClick.js';
 import { handleTimeSelectMenu, handleTemperatureSelectMenu} from './contextMenu.js';
 import pointDrag from './pointDrag.js';
+import releaseBounds from './pointDrop.js';
 import { handleCheckFlowers09} from './handleChecking.js';
 import {TimeDataCheckList, TempDataCheckList} from './tTChecklistSensitivity.js';
 
@@ -90,7 +91,7 @@ export default function CoastApp() {
     const initP1 = [{ x: initx1, y: inity1 }];
     const initXBoundP1 = [{x:initx1-15, y:inity1},{x:initx1, y:inity1},{x:initx1+15, y:inity1}];
     const initYBoundP1 = [{x:initx1, y:inity1-30},{x:initx1, y:inity1},{x:initx1, y:inity1+30}];
-    const [options, setOptions] = useState(plotInit(initChartClick, initPointClick, pointDrag, 
+    const [options, setOptions] = useState(plotInit(initChartClick, initPointClick, pointDrag, releaseBounds,
         initP1, initXBoundP1, initYBoundP1, chartRef, handleContextMenu, hideContextMenu, settData, setTData));
     
     
