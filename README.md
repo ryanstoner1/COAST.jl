@@ -5,14 +5,14 @@ This package is for thermochronological modeling and has two main focuses:
 
 - **sensitivity analysis**:  
 quantifying how uncertainties in input parameters explain the variance of permissible temperature-time paths and vice-versa using both global and local sensitivity analysis techniques
-- **open-source forward and inverse thermochronlogical modeling**:  
+- **open-source forward and thermochronological modeling**:  
 a community-oriented resource for thermal history inversion
 ---
 
-Documentation can be accessed [XXXXX - under construction]
+Documentation - under construction
 
 ---
-#### **COAST** can be accessed in three ways:
+#### **COAST** can be accessed in two ways:
 ---
 1. Using the GUI at [coast.thermochron.org](https://coast.thermochron.org "COAST")
 2. Downloading COAST as a Julia package.  
@@ -32,5 +32,3 @@ in the terminal/shell/command prompt. Moving the folder to ~/.julia/dev/ and usi
 ```julia
     (v1.5) pkg> add COAST.jl
 ```
-
-3. Use docker [XXXXX - under construction]

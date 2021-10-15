@@ -1,6 +1,5 @@
-# using Pkg
-# Pkg.activate(pwd())
-# using COAST
+# Solves diffusion equation for zoned crystal using Crank-Nicolson scheme
+
 using LinearAlgebra
 
 Nt = 100
@@ -30,22 +29,12 @@ U238 = tTcopy[(2*Nt+Nx+1):end]
 U238_0 = U238*(exp(COAST.lambda_38*t[1])) # U238 is measured at present
 U235_0 = U235*(exp(COAST.lambda_35*t[1])) # U238 is measured at present
 Th232_0 = Th232*(exp(COAST.lambda_32*t[1])) # U238 is measured at present
-# print("old Nt is: $(Nt) \n")
-# Nt = length(t)
-# print("new Nt is: $(Nt) \n")
-# if isnothing(r)
-#     dr = L/(Nx-1)
-#     r = LinRange(0.0,L,Nx)
-# else 
-    dr = r[2] - r[1]
-#end
 D_diffn = [0.0]
 
 Pb = 0.0*ones(Nx)
 Pb_solns = zeros(Nx,Nt) # includes time t0
 Pb_solns[:,1] = Pb
 Pb_rad = 0.0
-
 
 rhs = zeros(Nx)
 U238_cur = U238_0
@@ -73,15 +62,3 @@ end
 
 return Pb_solns[:,end]
 end
-
-# Pbtot = [0.0]
-# r = LinRange(0.0,L,Nx)
-# U238 = U238*ones(Nx)
-# Pb06forw = zonation_forward(Ea,COAST.Rjoules,D0,U238,0.0,0.0,L,Nt,Nx,t...,T...,r...,U238...)
-# for i in 2:Nx
-#     Pbtot[1] += pi*(r[i]^3-r[i-1]^3)*(Pb06forw[i]+Pb06forw[i-1])/2
-# end
-# Pbtot = Pbtot[1]/(pi*L^3)
-# print("FD: total lead predicted is $(Pbtot)\n")
-# Pb_heft = (1.0*(U238*exp(50.7*1e6*COAST.sec_in_yrs/COAST.τ38)-U238))
-# print("HeFTy: total lead predicted is $(Pb_heft)\n")
