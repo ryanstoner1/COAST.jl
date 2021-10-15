@@ -1,19 +1,18 @@
-const pointDrag = (e, chartRef, setXData, setYData) => {
-    
+const pointDrag = (e, chartRef, setXData, setYData) => {  
     const chartLocal = chartRef.current.chart;
     let pointInd = e.target.index;
     const newX = e.newPoint.x;
     const newY = e.newPoint.y;
+
     // need to pull bound axes along with it
     if (e.target.series.index === 0) {
-        
+
         if (chartLocal.series[0].xData.length>(pointInd+1)) {
             chartLocal.series[0].options.dragDrop.dragMaxX = chartLocal.series[0].xData[(pointInd+1)]-0.1;
         };
         if (pointInd>0) {
             chartLocal.series[0].options.dragDrop.dragMinX = chartLocal.series[0].xData[(pointInd-1)]+0.1;
         };
-
 
         const oldDataX = {...chartLocal.series[(2*pointInd+1)]};
         const oldDataY = {...chartLocal.series[(2*pointInd+2)]};
@@ -43,10 +42,12 @@ const pointDrag = (e, chartRef, setXData, setYData) => {
                 } else {
                     return item 
                 }}
-        ));          
-    } else if (e.target.series.index > 0) {
-        // whether x or y direction being dragged
+        ));   
 
+    // bounds being dragged       
+    } else if (e.target.series.index > 0) {
+
+        // whether x or y direction being dragged
         if (e.target.series.index % 2 === 1) {
             const pointInd = (e.target.series.index - 1)/2
             const oldDataX = {...chartLocal.series[e.target.series.index]};
